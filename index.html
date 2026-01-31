@@ -6,7 +6,7 @@
 
 <title>聖經（和合本）</title>
 
-<!-- ✅ PWA 必須 -->
+<!-- PWA -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#ffffff">
 
@@ -31,6 +31,7 @@ body {
   line-height: 1.8;
   background: var(--bg);
   color: var(--text);
+  overflow-x: hidden; /* ⭐ 防止橫向捲動 */
 }
 
 /* Header */
@@ -92,12 +93,17 @@ header input {
 /* Content */
 main {
   padding: 76px 16px 40px;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 /* Verse */
 .verse {
   padding: 6px 0;
   border-bottom: 1px dotted var(--border);
+  white-space: normal;          /* ⭐ 強制可斷行 */
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .vnum {
@@ -105,15 +111,18 @@ main {
   margin-right: 6px;
 }
 
-.verse button {
-  margin-left: 6px;
-}
-
 .note {
   margin-top: 6px;
   padding: 8px;
   background: rgba(255,255,0,0.18);
   font-size: 0.9em;
+}
+
+/* Chapter Nav */
+.chapter-nav {
+  display: flex;
+  justify-content: space-between;
+  margin: 24px 0;
 }
 </style>
 </head>
@@ -140,7 +149,10 @@ let bible = {};
 let drawer = document.getElementById('drawer');
 let content = document.getElementById('content');
 
-/* ========== UI 控制 ========== */
+let currentBook = null;
+let currentChapter = null;
+
+/* UI */
 function toggleMenu() {
   drawer.classList.toggle('open');
 }
@@ -157,7 +169,7 @@ function toggleDark() {
   localStorage.setItem('dark', document.body.classList.contains('dark'));
 }
 
-/* 載入設定 */
+/* Restore settings */
 if (localStorage.getItem('dark') === 'true') {
   document.body.classList.add('dark');
 }
@@ -166,7 +178,7 @@ if (savedSize) {
   document.documentElement.style.setProperty('--font-size', savedSize + 'px');
 }
 
-/* ========== 載入聖經 ========== */
+/* Load Bible */
 fetch('bible.txt')
 .then(r => r.text())
 .then(text => {
@@ -182,7 +194,7 @@ fetch('bible.txt')
   restoreLast();
 });
 
-/* ========== 書卷 / 章 ========== */
+/* Menu */
 function renderBooks() {
   drawer.innerHTML = '';
   Object.keys(bible).forEach(book => {
@@ -205,84 +217,79 @@ function renderChapters(book) {
   });
 }
 
-/* ========== 顯示經文 ========== */
+/* Show Chapter */
 function showChapter(book, ch) {
+  currentBook = book;
+  currentChapter = parseInt(ch);
+
   drawer.classList.remove('open');
-  document.title = `${BOOKS[book]} ${ch}`;
-  content.innerHTML = bible[book][ch].map(v => {
-    const id = `${book}-${ch}-${v.v}`;
-    const noteKey = `note-${id}`;
-    const note = localStorage.getItem(noteKey) || '';
-    return `
-      <div class="verse" id="${id}">
+  document.title = `${BOOKS[book]} 第 ${ch} 章`;
+
+  content.innerHTML =
+    bible[book][ch].map(v => `
+      <div class="verse" id="${book}-${ch}-${v.v}">
         <span class="vnum">${v.v}</span>
         <span>${v.verse}</span>
-        <button onclick="copyLink('${id}')">🔗</button>
-        <button onclick="editNote('${id}')">📝</button>
-        ${note ? `<div class="note">${note}</div>` : ''}
       </div>
-    `;
-  }).join('');
+    `).join('')
+    + renderChapterNav();
+
   localStorage.setItem('last', JSON.stringify({book, ch}));
 }
 
-/* ========== 搜尋 ========== */
-document.getElementById('searchBox').addEventListener('input', e => {
-  const q = e.target.value.trim();
-  if (q.length < 2) return;
-  let out = [];
-  for (const b in bible) {
-    for (const ch in bible[b]) {
-      bible[b][ch].forEach(v => {
-        if (v.verse.includes(q)) {
-          out.push(`
-            <div class="verse">
-              <strong>${BOOKS[b]} ${ch}:${v.v}</strong><br>
-              ${v.verse}
-            </div>
-          `);
-        }
-      });
+/* Chapter Navigation */
+function renderChapterNav() {
+  return `
+    <div class="chapter-nav">
+      <button onclick="goPrev()">⬅ 上一章</button>
+      <button onclick="goNext()">下一章 ➡</button>
+    </div>
+  `;
+}
+
+function goPrev() {
+  const chapters = Object.keys(bible[currentBook]).map(Number);
+  const idx = chapters.indexOf(currentChapter);
+
+  if (idx > 0) {
+    showChapter(currentBook, chapters[idx - 1]);
+  } else {
+    const books = Object.keys(bible);
+    const bIdx = books.indexOf(currentBook);
+    if (bIdx > 0) {
+      const prevBook = books[bIdx - 1];
+      const lastCh = Math.max(...Object.keys(bible[prevBook]).map(Number));
+      showChapter(prevBook, lastCh);
     }
   }
-  content.innerHTML = out.join('');
-});
-
-/* ========== 分享 / 註解 ========== */
-function copyLink(id) {
-  const url = location.origin + location.pathname + '#' + id;
-  navigator.clipboard.writeText(url);
-  alert('經文連結已複製');
 }
 
-function editNote(id) {
-  const key = `note-${id}`;
-  const cur = localStorage.getItem(key) || '';
-  const note = prompt('輸入你的註解：', cur);
-  if (note !== null) {
-    localStorage.setItem(key, note);
-    location.hash = id;
-    location.reload();
+function goNext() {
+  const chapters = Object.keys(bible[currentBook]).map(Number);
+  const idx = chapters.indexOf(currentChapter);
+
+  if (idx < chapters.length - 1) {
+    showChapter(currentBook, chapters[idx + 1]);
+  } else {
+    const books = Object.keys(bible);
+    const bIdx = books.indexOf(currentBook);
+    if (bIdx < books.length - 1) {
+      const nextBook = books[bIdx + 1];
+      showChapter(nextBook, 1);
+    }
   }
 }
 
-/* ========== 回復閱讀位置 ========== */
+/* Restore last */
 function restoreLast() {
   const last = localStorage.getItem('last');
   if (!last) return;
   const {book, ch} = JSON.parse(last);
   showChapter(book, ch);
 }
-
-window.addEventListener('load', () => {
-  if (location.hash) {
-    const el = document.querySelector(location.hash);
-    if (el) el.scrollIntoView();
-  }
-});
 </script>
 
-<!-- ✅ Service Worker 註冊（非常重要） -->
+<!-- Service Worker -->
 <script>
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('service-worker.js');
