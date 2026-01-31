@@ -1,19 +1,18 @@
-const CACHE_NAME = 'bible-pwa-v4';
+const CACHE_NAME = 'bible-pwa-v1.0.1';
+// 注意：快取清單必須精確，檔案不存在會導致 SW 安裝失敗
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './books.js',
   './bible.txt',
   './manifest.json'
-  // 注意：請確保 icon-192.png 和 icon-512.png 真的存在，否則會報錯
 ];
 
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('正在預載入快取資源...');
-        // 使用 addAll 會要求所有資源都必須存在，否則失敗
+        console.log('SW: 開啟快取');
         return cache.addAll(ASSETS_TO_CACHE);
       })
       .then(() => self.skipWaiting())
@@ -31,21 +30,17 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// 策略：Network First (優先抓取最新數據，斷網時使用快取)
+// 採用 Stale-While-Revalidate 策略：先用快取，同時後台更新
 self.addEventListener('fetch', event => {
   event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        // 如果網路正常，複製一份存入快取
-        if (response.status === 200) {
-          const resCopy = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, resCopy));
-        }
-        return response;
-      })
-      .catch(() => {
-        // 斷網時從快取中尋找
-        return caches.match(event.request);
-      })
+    caches.match(event.request).then(cachedResponse => {
+      const fetchPromise = fetch(event.request).then(networkResponse => {
+        caches.open(CACHE_NAME).then(cache => {
+          cache.put(event.request, networkResponse.clone());
+        });
+        return networkResponse;
+      });
+      return cachedResponse || fetchPromise;
+    })
   );
 });
