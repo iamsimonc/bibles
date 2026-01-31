@@ -2,18 +2,19 @@
 <html lang="zh-HK">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
 <title>聖經（和合本）</title>
-<link rel="manifest" href="manifest.json">
+<link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#ffffff">
 
 <style>
+* { box-sizing: border-box; }
 :root {
   --font-size: 20px;
   --bg: #fafafa;
   --text: #000;
   --border: #ccc;
+  --header-h: 56px;
 }
 
 body.dark {
@@ -24,7 +25,7 @@ body.dark {
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: var(--font-size);
   line-height: 1.8;
   background: var(--bg);
@@ -36,72 +37,88 @@ header {
   position: fixed;
   top: 0;
   width: 100%;
-  height: 56px;
+  height: var(--header-h);
   background: var(--bg);
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 8px;
+  gap: 10px;
+  padding: 0 12px;
   z-index: 100;
 }
 
-header button { font-size: 18px; }
+header button { 
+  font-size: 18px; 
+  padding: 5px 10px;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 4px;
+}
 
 #drawer {
   position: fixed;
-  top: 56px;
+  top: var(--header-h);
   left: 0;
-  width: 260px;
-  height: calc(100% - 56px);
+  width: 280px;
+  height: calc(100% - var(--header-h));
   background: var(--bg);
   border-right: 1px solid var(--border);
   overflow-y: auto;
   transform: translateX(-100%);
-  transition: 0.3s;
+  transition: 0.3s ease;
+  z-index: 99;
 }
 
 #drawer.open { transform: translateX(0); }
 
 .book-btn, .chapter-btn {
   width: 100%;
-  padding: 12px;
+  padding: 15px;
   border: none;
   background: none;
   text-align: left;
   color: var(--text);
   border-bottom: 1px solid var(--border);
+  font-size: 18px;
 }
 
 main {
-  padding: 76px 16px 40px;
-  word-break: break-word;
-  overflow-wrap: break-word;
+  padding: calc(var(--header-h) + 20px) 16px 40px;
+  max-width: 800px;
+  margin: 0 auto;
 }
 
-.verse { border-bottom: 1px dotted var(--border); padding: 6px 0; }
+.verse { border-bottom: 1px dotted var(--border); padding: 8px 0; }
+.verse strong { color: #d32f2f; margin-right: 8px; }
+body.dark .verse strong { color: #ff8a80; }
 
 .chapter-nav {
   display: flex;
   justify-content: space-between;
-  margin: 24px 0;
+  margin: 30px 0;
+}
+
+.chapter-nav button {
+  padding: 10px 20px;
+  font-size: 16px;
 }
 </style>
 </head>
-
 <body>
 
 <header>
-  <button onclick="toggleMenu()">☰</button>
+  <button onclick="toggleMenu()">☰ 卷目</button>
   <button onclick="changeFont(-2)">A−</button>
   <button onclick="changeFont(2)">A+</button>
-  <button onclick="toggleDark()">🌙</button>
+  <button onclick="toggleDark()">🌓</button>
 </header>
 
 <nav id="drawer"></nav>
-<main id="content">載入中…</main>
+<main id="content">正在初始化...</main>
 
-<script src="books.js"></script>
+<script src="./books.js"></script>
 <script>
 const bible = {};
 let currentBook = null;
@@ -110,7 +127,6 @@ let currentChapter = null;
 const drawer = document.getElementById('drawer');
 const content = document.getElementById('content');
 
-/* UI */
 function toggleMenu() { drawer.classList.toggle('open'); }
 function changeFont(d) {
   let s = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--font-size'));
@@ -119,24 +135,35 @@ function changeFont(d) {
 }
 function toggleDark() { document.body.classList.toggle('dark'); }
 
-/* Load Bible */
-fetch('bible.txt')
-.then(r => r.text())
-.then(text => {
-  text.split('\n').forEach(line => {
-    const m = line.match(/^([\u4e00-\u9fa5\w]+)\s+(\d+):(\d+)\s+(.*)$/);
-    if (!m) return;
-    const [, b, ch, v, verse] = m;
-    bible[b] ??= {};
-    bible[b][ch] ??= [];
-    bible[b][ch].push({ v, verse });
+/* 載入數據 */
+fetch('./bible.txt')
+  .then(r => {
+    if(!r.ok) throw new Error("找不到 bible.txt，請確認檔案路徑");
+    return r.text();
+  })
+  .then(text => {
+    const lines = text.split(/\r?\n/);
+    lines.forEach(line => {
+      // 修正 Regex，確保能處理可能的空白
+      const m = line.trim().match(/^([\u4e00-\u9fa5\w]+)\s+(\d+):(\d+)\s+(.*)$/);
+      if (!m) return;
+      const [, b, ch, v, verse] = m;
+      const chNum = parseInt(ch);
+      bible[b] ??= {};
+      bible[b][chNum] ??= [];
+      bible[b][chNum].push({ v, verse });
+    });
+    renderBooks();
+    content.innerHTML = "請從選單選擇經卷";
+  })
+  .catch(err => {
+    content.innerHTML = "載入失敗：" + err.message;
+    console.error(err);
   });
-  renderBooks();
-});
 
-/* Menu from BOOKS order */
 function renderBooks() {
   drawer.innerHTML = '';
+  // 假設 BOOKS 在 books.js 裡是一個 Object，如 { "Gen": "創世記" }
   Object.keys(BOOKS).forEach(b => {
     if (!bible[b]) return;
     const btn = document.createElement('button');
@@ -148,8 +175,9 @@ function renderBooks() {
 }
 
 function renderChapters(book) {
-  drawer.innerHTML = '';
-  Object.keys(bible[book]).map(Number).sort((a,b)=>a-b).forEach(ch => {
+  drawer.innerHTML = `<button class="book-btn" onclick="renderBooks()" style="background:#eee; color:#000">⬅ 返回卷目</button>`;
+  const chapters = Object.keys(bible[book]).map(Number).sort((a,b)=>a-b);
+  chapters.forEach(ch => {
     const btn = document.createElement('button');
     btn.className = 'chapter-btn';
     btn.textContent = `第 ${ch} 章`;
@@ -161,23 +189,28 @@ function renderChapters(book) {
 function showChapter(book, ch) {
   currentBook = book;
   currentChapter = ch;
+  window.scrollTo(0,0);
   drawer.classList.remove('open');
 
-  content.innerHTML =
-    bible[book][ch].map(v =>
-      `<div class="verse"><strong>${v.v}</strong> ${v.verse}</div>`
-    ).join('') + `
-      <div class="chapter-nav">
-        <button onclick="goPrev()">⬅ 上一章</button>
-        <button onclick="goNext()">下一章 ➡</button>
-      </div>`;
+  let html = `<h3>${BOOKS[book]} 第 ${ch} 章</h3>`;
+  html += bible[book][ch].map(v => 
+    `<div class="verse"><strong>${v.v}</strong> ${v.verse}</div>`
+  ).join('');
+  
+  html += `
+    <div class="chapter-nav">
+      <button onclick="goPrev()">⬅ 上一章</button>
+      <button onclick="goNext()">下一章 ➡</button>
+    </div>`;
+  
+  content.innerHTML = html;
 }
 
 function goPrev() {
   const chapters = Object.keys(bible[currentBook]).map(Number).sort((a,b)=>a-b);
   const i = chapters.indexOf(currentChapter);
   if (i > 0) return showChapter(currentBook, chapters[i-1]);
-
+  
   const books = Object.keys(BOOKS);
   const bi = books.indexOf(currentBook);
   if (bi > 0) {
@@ -199,11 +232,14 @@ function goNext() {
     showChapter(nb, 1);
   }
 }
-</script>
 
-<script>
+/* Service Worker 註冊使用相對路徑 */
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/service-worker.js');
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js')
+      .then(reg => console.log('SW 註冊成功'))
+      .catch(err => console.log('SW 註冊失敗', err));
+  });
 }
 </script>
 
