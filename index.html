@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<title>聖經（和合本）</title>
+<style>
+body { font-family: system-ui; display: flex; }
+#books { width: 200px; border-right: 1px solid #ccc; padding: 10px; }
+#content { padding: 20px; }
+button { display:block; margin:5px 0; width:100%; }
+</style>
+</head>
+<body>
+
+<div id="books"></div>
+<div id="content">請選擇書卷</div>
+
+<script src="books.js"></script>
+<script>
+fetch('bible.txt')
+  .then(r => r.text())
+  .then(text => {
+    const lines = text.split('\n');
+    const data = {};
+
+    lines.forEach(line => {
+      const match = line.match(/^(\w+)\s+/);
+      if (!match) return;
+      const book = match[1];
+      if (!data[book]) data[book] = [];
+      data[book].push(line);
+    });
+
+    // 產生書卷按鈕
+    const booksDiv = document.getElementById('books');
+    Object.keys(data).forEach(book => {
+      const btn = document.createElement('button');
+      btn.textContent = BOOKS[book] || book;
+      btn.onclick = () => {
+        document.getElementById('content').innerHTML =
+          `<h2>${BOOKS[book] || book}</h2><pre>${data[book].join('\n')}</pre>`;
+      };
+      booksDiv.appendChild(btn);
+    });
+  });
+</script>
+
+</body>
+</html>
