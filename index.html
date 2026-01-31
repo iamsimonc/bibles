@@ -6,7 +6,6 @@
 
 <title>聖經（和合本）</title>
 
-<!-- PWA -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#ffffff">
 
@@ -31,10 +30,9 @@ body {
   line-height: 1.8;
   background: var(--bg);
   color: var(--text);
-  overflow-x: hidden; /* ⭐ 防止橫向捲動 */
+  overflow-x: hidden;
 }
 
-/* Header */
 header {
   position: fixed;
   top: 0;
@@ -46,7 +44,6 @@ header {
   align-items: center;
   gap: 6px;
   padding: 0 8px;
-  box-sizing: border-box;
   z-index: 100;
 }
 
@@ -54,13 +51,6 @@ header button {
   font-size: 18px;
 }
 
-header input {
-  flex: 1;
-  font-size: 16px;
-  padding: 4px 6px;
-}
-
-/* Drawer */
 #drawer {
   position: fixed;
   top: 56px;
@@ -71,16 +61,12 @@ header input {
   border-right: 1px solid var(--border);
   overflow-y: auto;
   transform: translateX(-100%);
-  transition: transform 0.3s ease;
-  z-index: 90;
+  transition: 0.3s;
 }
 
-#drawer.open {
-  transform: translateX(0);
-}
+#drawer.open { transform: translateX(0); }
 
-.book-btn,
-.chapter-btn {
+.book-btn, .chapter-btn {
   width: 100%;
   padding: 12px;
   border: none;
@@ -90,35 +76,17 @@ header input {
   border-bottom: 1px solid var(--border);
 }
 
-/* Content */
 main {
   padding: 76px 16px 40px;
-  overflow-wrap: break-word;
   word-break: break-word;
+  overflow-wrap: break-word;
 }
 
-/* Verse */
 .verse {
-  padding: 6px 0;
   border-bottom: 1px dotted var(--border);
-  white-space: normal;          /* ⭐ 強制可斷行 */
-  overflow-wrap: break-word;
-  word-break: break-word;
+  padding: 6px 0;
 }
 
-.vnum {
-  font-weight: bold;
-  margin-right: 6px;
-}
-
-.note {
-  margin-top: 6px;
-  padding: 8px;
-  background: rgba(255,255,0,0.18);
-  font-size: 0.9em;
-}
-
-/* Chapter Nav */
 .chapter-nav {
   display: flex;
   justify-content: space-between;
@@ -134,48 +102,29 @@ main {
   <button onclick="changeFont(-2)">A−</button>
   <button onclick="changeFont(2)">A+</button>
   <button onclick="toggleDark()">🌙</button>
-  <input id="searchBox" placeholder="搜尋經文">
 </header>
 
 <nav id="drawer"></nav>
-
-<main id="content">
-  <p>請點擊左上角 ☰ 選擇書卷</p>
-</main>
+<main id="content">載入中…</main>
 
 <script src="books.js"></script>
 <script>
-let bible = {};
-let drawer = document.getElementById('drawer');
-let content = document.getElementById('content');
-
+const bible = {};
 let currentBook = null;
 let currentChapter = null;
 
+const drawer = document.getElementById('drawer');
+const content = document.getElementById('content');
+
 /* UI */
-function toggleMenu() {
-  drawer.classList.toggle('open');
+function toggleMenu() { drawer.classList.toggle('open'); }
+function changeFont(d) {
+  let s = parseInt(getComputedStyle(document.body).fontSize);
+  s = Math.max(14, s + d);
+  document.documentElement.style.setProperty('--font-size', s + 'px');
 }
-
-function changeFont(delta) {
-  let size = parseInt(getComputedStyle(document.body).fontSize);
-  size = Math.max(14, size + delta);
-  document.documentElement.style.setProperty('--font-size', size + 'px');
-  localStorage.setItem('fontSize', size);
-}
-
 function toggleDark() {
   document.body.classList.toggle('dark');
-  localStorage.setItem('dark', document.body.classList.contains('dark'));
-}
-
-/* Restore settings */
-if (localStorage.getItem('dark') === 'true') {
-  document.body.classList.add('dark');
-}
-const savedSize = localStorage.getItem('fontSize');
-if (savedSize) {
-  document.documentElement.style.setProperty('--font-size', savedSize + 'px');
 }
 
 /* Load Bible */
@@ -185,30 +134,30 @@ fetch('bible.txt')
   text.split('\n').forEach(line => {
     const m = line.match(/^(\w+)\s+(\d+):(\d+)\s+(.*)$/);
     if (!m) return;
-    const [, book, ch, v, verse] = m;
-    bible[book] ??= {};
-    bible[book][ch] ??= [];
-    bible[book][ch].push({ v, verse });
+    const [, b, ch, v, verse] = m;
+    bible[b] ??= {};
+    bible[b][ch] ??= [];
+    bible[b][ch].push({ v, verse });
   });
   renderBooks();
-  restoreLast();
 });
 
-/* Menu */
+/* Menu from BOOKS order */
 function renderBooks() {
   drawer.innerHTML = '';
-  Object.keys(bible).forEach(book => {
+  Object.keys(BOOKS).forEach(b => {
+    if (!bible[b]) return;
     const btn = document.createElement('button');
     btn.className = 'book-btn';
-    btn.textContent = BOOKS[book] || book;
-    btn.onclick = () => renderChapters(book);
+    btn.textContent = BOOKS[b];
+    btn.onclick = () => renderChapters(b);
     drawer.appendChild(btn);
   });
 }
 
 function renderChapters(book) {
   drawer.innerHTML = '';
-  Object.keys(bible[book]).forEach(ch => {
+  Object.keys(bible[book]).map(Number).sort((a,b)=>a-b).forEach(ch => {
     const btn = document.createElement('button');
     btn.className = 'chapter-btn';
     btn.textContent = `第 ${ch} 章`;
@@ -217,79 +166,49 @@ function renderChapters(book) {
   });
 }
 
-/* Show Chapter */
 function showChapter(book, ch) {
   currentBook = book;
-  currentChapter = parseInt(ch);
-
+  currentChapter = ch;
   drawer.classList.remove('open');
-  document.title = `${BOOKS[book]} 第 ${ch} 章`;
 
   content.innerHTML =
-    bible[book][ch].map(v => `
-      <div class="verse" id="${book}-${ch}-${v.v}">
-        <span class="vnum">${v.v}</span>
-        <span>${v.verse}</span>
-      </div>
-    `).join('')
-    + renderChapterNav();
-
-  localStorage.setItem('last', JSON.stringify({book, ch}));
-}
-
-/* Chapter Navigation */
-function renderChapterNav() {
-  return `
-    <div class="chapter-nav">
-      <button onclick="goPrev()">⬅ 上一章</button>
-      <button onclick="goNext()">下一章 ➡</button>
-    </div>
-  `;
+    bible[book][ch].map(v =>
+      `<div class="verse"><strong>${v.v}</strong> ${v.verse}</div>`
+    ).join('') + `
+      <div class="chapter-nav">
+        <button onclick="goPrev()">⬅ 上一章</button>
+        <button onclick="goNext()">下一章 ➡</button>
+      </div>`;
 }
 
 function goPrev() {
-  const chapters = Object.keys(bible[currentBook]).map(Number);
-  const idx = chapters.indexOf(currentChapter);
+  const chapters = Object.keys(bible[currentBook]).map(Number).sort((a,b)=>a-b);
+  const i = chapters.indexOf(currentChapter);
+  if (i > 0) return showChapter(currentBook, chapters[i-1]);
 
-  if (idx > 0) {
-    showChapter(currentBook, chapters[idx - 1]);
-  } else {
-    const books = Object.keys(bible);
-    const bIdx = books.indexOf(currentBook);
-    if (bIdx > 0) {
-      const prevBook = books[bIdx - 1];
-      const lastCh = Math.max(...Object.keys(bible[prevBook]).map(Number));
-      showChapter(prevBook, lastCh);
-    }
+  const books = Object.keys(BOOKS);
+  const bi = books.indexOf(currentBook);
+  if (bi > 0) {
+    const pb = books[bi-1];
+    const last = Math.max(...Object.keys(bible[pb]).map(Number));
+    showChapter(pb, last);
   }
 }
 
 function goNext() {
-  const chapters = Object.keys(bible[currentBook]).map(Number);
-  const idx = chapters.indexOf(currentChapter);
+  const chapters = Object.keys(bible[currentBook]).map(Number).sort((a,b)=>a-b);
+  const i = chapters.indexOf(currentChapter);
+  if (i < chapters.length-1) return showChapter(currentBook, chapters[i+1]);
 
-  if (idx < chapters.length - 1) {
-    showChapter(currentBook, chapters[idx + 1]);
-  } else {
-    const books = Object.keys(bible);
-    const bIdx = books.indexOf(currentBook);
-    if (bIdx < books.length - 1) {
-      const nextBook = books[bIdx + 1];
-      showChapter(nextBook, 1);
-    }
+  const books = Object.keys(BOOKS);
+  const bi = books.indexOf(currentBook);
+  if (bi < books.length-1) {
+    const nb = books[bi+1];
+    showChapter(nb, 1);
   }
-}
-
-/* Restore last */
-function restoreLast() {
-  const last = localStorage.getItem('last');
-  if (!last) return;
-  const {book, ch} = JSON.parse(last);
-  showChapter(book, ch);
 }
 </script>
 
-<!-- Service Worker -->
 <script>
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('service-worker.js');
