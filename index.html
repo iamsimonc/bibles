@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>聖經（和合本）</title>
-
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#ffffff">
 
@@ -47,9 +46,7 @@ header {
   z-index: 100;
 }
 
-header button {
-  font-size: 18px;
-}
+header button { font-size: 18px; }
 
 #drawer {
   position: fixed;
@@ -82,10 +79,7 @@ main {
   overflow-wrap: break-word;
 }
 
-.verse {
-  border-bottom: 1px dotted var(--border);
-  padding: 6px 0;
-}
+.verse { border-bottom: 1px dotted var(--border); padding: 6px 0; }
 
 .chapter-nav {
   display: flex;
@@ -119,20 +113,18 @@ const content = document.getElementById('content');
 /* UI */
 function toggleMenu() { drawer.classList.toggle('open'); }
 function changeFont(d) {
-  let s = parseInt(getComputedStyle(document.body).fontSize);
+  let s = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--font-size'));
   s = Math.max(14, s + d);
   document.documentElement.style.setProperty('--font-size', s + 'px');
 }
-function toggleDark() {
-  document.body.classList.toggle('dark');
-}
+function toggleDark() { document.body.classList.toggle('dark'); }
 
 /* Load Bible */
 fetch('bible.txt')
 .then(r => r.text())
 .then(text => {
   text.split('\n').forEach(line => {
-    const m = line.match(/^(\w+)\s+(\d+):(\d+)\s+(.*)$/);
+    const m = line.match(/^([\u4e00-\u9fa5\w]+)\s+(\d+):(\d+)\s+(.*)$/);
     if (!m) return;
     const [, b, ch, v, verse] = m;
     bible[b] ??= {};
@@ -211,7 +203,7 @@ function goNext() {
 
 <script>
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('service-worker.js');
+  navigator.serviceWorker.register('/service-worker.js');
 }
 </script>
 
