@@ -12,6 +12,7 @@
     --font-size: 20px; --bg: #fdfdfd; --text: #1a1a1a; --border: #e0e0e0; 
     --header-h: 60px; --sidebar-w: 280px; --highlight-color: #fff176;
   }
+  /* 三種模式的 CSS */
   body.dark { --bg: #121212; --text: #dcdcdc; --border: #333; --highlight-color: #f57f17; }
   body.sepia { --bg: #f4ecd8; --text: #5b4636; --border: #dcd0b9; --highlight-color: #ffd54f; }
 
@@ -20,7 +21,6 @@
     font-size: var(--font-size); line-height: 1.9; background: var(--bg); color: var(--text); 
   }
 
-  /* 頂部導航 */
   header {
     position: fixed; top: 0; width: 100%; height: var(--header-h);
     background: var(--bg); border-bottom: 1px solid var(--border);
@@ -34,9 +34,7 @@
     border: 1px solid var(--border); color: var(--text); border-radius: 4px; cursor: pointer;
   }
 
-  /* 佈局結構 */
   #layout { display: flex; margin-top: var(--header-h); }
-
   #drawer {
     width: var(--sidebar-w); height: calc(100vh - var(--header-h));
     position: fixed; left: 0; background: var(--bg);
@@ -44,31 +42,24 @@
     transition: transform 0.3s ease; z-index: 999;
   }
 
-  main { 
-    flex: 1; padding: 20px 15px 80px; max-width: 800px; margin: 0 auto;
-    transition: margin-left 0.3s ease;
-  }
+  main { flex: 1; padding: 20px 15px 80px; max-width: 800px; margin: 0 auto; transition: margin-left 0.3s ease; }
 
-  /* 響應式：寬螢幕時選單常駐 */
   @media (min-width: 1024px) {
     #drawer { transform: translateX(0) !important; }
     main { margin-left: var(--sidebar-w); }
     #menu-toggle { display: none; }
   }
 
-  /* 手機版隱藏選單 */
   @media (max-width: 1023px) {
     #drawer { transform: translateX(-100%); }
     #drawer.open { transform: translateX(0); }
   }
 
-  /* 經文樣式 */
   .verse { padding: 8px; border-bottom: 1px dotted var(--border); cursor: pointer; border-radius: 4px; }
   .verse.hl { background-color: var(--highlight-color); color: #000; }
   .verse strong { color: #c62828; margin-right: 10px; font-size: 0.85em; }
   body.dark .verse strong { color: #ffab91; }
 
-  /* 筆記區 */
   #notes-area { margin-top: 40px; padding: 15px; border: 1px solid var(--border); border-radius: 8px; }
   #notes-input {
     width: 100%; height: 120px; background: transparent; color: var(--text);
@@ -77,34 +68,27 @@
 
   .book-btn, .chapter-btn {
     width: 100%; padding: 14px; border: none; background: none;
-    text-align: left; color: var(--text); border-bottom: 1px solid var(--border);
-    font-size: 16px; cursor: pointer;
+    text-align: left; color: var(--text); border-bottom: 1px solid var(--border); font-size: 16px;
   }
   .chapter-nav { display: flex; justify-content: space-between; margin: 30px 0; }
 </style>
 </head>
-<body>
-
-<header>
+<body class="default"> <header>
   <div class="btn-group">
     <button id="menu-toggle" onclick="toggleMenu()">☰ 經卷</button>
     <button onclick="changeTheme('sepia')">🌾 護眼</button>
     <button onclick="changeTheme('dark')">🌙 深色</button>
   </div>
   <div class="btn-group">
-    <button onclick="exportData()" title="備份到檔案">💾 匯出</button>
-    <button onclick="document.getElementById('importFile').click()" title="從檔案還原">🔄 匯入</button>
+    <button onclick="exportData()">💾 匯出</button>
+    <button onclick="document.getElementById('importFile').click()">🔄 匯入</button>
     <input type="file" id="importFile" style="display:none" onchange="handleFile(this)">
-  </div>
-  <div class="btn-group">
-    <button onclick="changeFont(-2)">A−</button>
-    <button onclick="changeFont(2)">A+</button>
   </div>
 </header>
 
 <div id="layout">
   <nav id="drawer"></nav>
-  <main id="content">數據加載中...</main>
+  <main id="content">載入中...</main>
 </div>
 
 <script src="./books.js"></script>
@@ -113,18 +97,53 @@ let bible = {};
 let currentBook = null;
 let currentChapter = null;
 
-function toggleMenu() { document.getElementById('drawer').classList.toggle('open'); }
-function changeFont(d) {
-  let s = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--font-size'));
-  document.documentElement.style.setProperty('--font-size', Math.max(14, s + d) + 'px');
-}
-function changeTheme(t) {
-  const b = document.body;
-  if(t === 'dark') { b.classList.toggle('dark'); b.classList.remove('sepia'); }
-  else { b.classList.toggle('sepia'); b.classList.remove('dark'); }
+// --- 主題記憶功能 ---
+function applySavedTheme() {
+  const savedTheme = localStorage.getItem('userTheme');
+  if (savedTheme) {
+    document.body.classList.remove('dark', 'sepia');
+    if (savedTheme !== 'default') {
+      document.body.classList.add(savedTheme);
+    }
+  }
 }
 
-/* 核心解析 */
+function changeTheme(t) {
+  const b = document.body;
+  let activeTheme = 'default';
+
+  if (t === 'dark') {
+    if (b.classList.contains('dark')) {
+      b.classList.remove('dark');
+    } else {
+      b.classList.add('dark');
+      b.classList.remove('sepia');
+      activeTheme = 'dark';
+    }
+  } else if (t === 'sepia') {
+    if (b.classList.contains('sepia')) {
+      b.classList.remove('sepia');
+    } else {
+      b.classList.add('sepia');
+      b.classList.remove('dark');
+      activeTheme = 'sepia';
+    }
+  }
+  
+  // 如果身上什麼都沒有，就是 default
+  if (!b.classList.contains('dark') && !b.classList.contains('sepia')) {
+    activeTheme = 'default';
+  }
+  
+  localStorage.setItem('userTheme', activeTheme);
+}
+
+// 初始化時立即套用主題
+applySavedTheme();
+
+function toggleMenu() { document.getElementById('drawer').classList.toggle('open'); }
+
+/* 數據解析與顯示 */
 fetch('./bible.txt').then(r => r.text()).then(text => {
   text.split(/\r?\n/).forEach(line => {
     const m = line.trim().match(/^([\u4e00-\u9fa5\w]+)\s+(\d+):(\d+)\s+(.*)$/);
@@ -165,8 +184,7 @@ function renderChapters(book) {
 }
 
 function showChapter(book, ch) {
-  currentBook = book;
-  currentChapter = ch;
+  currentBook = book; currentChapter = ch;
   localStorage.setItem('lastRead', JSON.stringify({book, ch}));
   document.getElementById('drawer').classList.remove('open');
   window.scrollTo(0,0);
@@ -218,7 +236,7 @@ function autoResume() {
   else document.getElementById('content').innerHTML = "請從選單選擇經卷開始閱讀";
 }
 
-/* 備份與還原邏輯 */
+/* 備份與還原 */
 function exportData() {
   const data = JSON.stringify(localStorage);
   const blob = new Blob([data], {type: 'application/json'});
@@ -235,16 +253,17 @@ function handleFile(input) {
   reader.onload = (e) => {
     try {
       const data = JSON.parse(e.target.result);
-      if (confirm("這將覆蓋目前的所有筆記與畫線，確定嗎？")) {
+      if (confirm("這將還原檔案中的設定與筆記，確定嗎？")) {
         localStorage.clear();
         for (let key in data) localStorage.setItem(key, data[key]);
         location.reload();
       }
-    } catch (err) { alert("讀取失敗，請確認檔案正確。"); }
+    } catch (err) { alert("檔案讀取失敗。"); }
   };
   reader.readAsText(file);
 }
 
+// 導航邏輯
 function goPrev() {
   const chapters = Object.keys(bible[currentBook]).map(Number).sort((a,b)=>a-b);
   const i = chapters.indexOf(currentChapter);
@@ -257,7 +276,6 @@ function goPrev() {
     showChapter(pb, last);
   }
 }
-
 function goNext() {
   const chapters = Object.keys(bible[currentBook]).map(Number).sort((a,b)=>a-b);
   const i = chapters.indexOf(currentChapter);
