@@ -3,16 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>聖經研讀 PWA</title>
+<title>聖經研讀 PWA (查經進階版)</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="theme-color" content="#ffffff">
 <style>
   * { box-sizing: border-box; }
   :root { 
     --font-size: 20px; --bg: #fdfdfd; --text: #1a1a1a; --border: #e0e0e0; 
-    --header-h: 60px; --sidebar-w: 280px; --highlight-color: #fff176;
+    --header-h: 60px; --sidebar-w: 300px; --highlight-color: #fff176;
   }
-  /* 三種模式的 CSS */
   body.dark { --bg: #121212; --text: #dcdcdc; --border: #333; --highlight-color: #f57f17; }
   body.sepia { --bg: #f4ecd8; --text: #5b4636; --border: #dcd0b9; --highlight-color: #ffd54f; }
 
@@ -21,6 +20,7 @@
     font-size: var(--font-size); line-height: 1.9; background: var(--bg); color: var(--text); 
   }
 
+  /* 頂部導航 */
   header {
     position: fixed; top: 0; width: 100%; height: var(--header-h);
     background: var(--bg); border-bottom: 1px solid var(--border);
@@ -30,10 +30,22 @@
 
   .btn-group { display: flex; gap: 5px; }
   header button { 
-    font-size: 14px; padding: 5px 8px; background: transparent; 
+    font-size: 14px; padding: 6px 10px; background: transparent; 
     border: 1px solid var(--border); color: var(--text); border-radius: 4px; cursor: pointer;
   }
 
+  /* 搜尋列樣式 */
+  #search-box {
+    padding: 10px; border-bottom: 1px solid var(--border); display: flex; gap: 5px;
+    position: sticky; top: 0; background: var(--bg); z-index: 10;
+  }
+  #search-input { 
+    flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: 4px; 
+    background: transparent; color: var(--text); font-size: 14px;
+  }
+  .match-hl { color: #d32f2f; font-weight: bold; background: rgba(255,0,0,0.1); }
+
+  /* 佈局結構 */
   #layout { display: flex; margin-top: var(--header-h); }
   #drawer {
     width: var(--sidebar-w); height: calc(100vh - var(--header-h));
@@ -41,7 +53,6 @@
     border-right: 1px solid var(--border); overflow-y: auto;
     transition: transform 0.3s ease; z-index: 999;
   }
-
   main { flex: 1; padding: 20px 15px 80px; max-width: 800px; margin: 0 auto; transition: margin-left 0.3s ease; }
 
   @media (min-width: 1024px) {
@@ -49,46 +60,64 @@
     main { margin-left: var(--sidebar-w); }
     #menu-toggle { display: none; }
   }
-
   @media (max-width: 1023px) {
     #drawer { transform: translateX(-100%); }
     #drawer.open { transform: translateX(0); }
   }
 
-  .verse { padding: 8px; border-bottom: 1px dotted var(--border); cursor: pointer; border-radius: 4px; }
+  /* 經文與進度 */
+  .read-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; margin-bottom: 20px; }
+  .read-checkbox { width: 18px; height: 18px; cursor: pointer; }
+  .verse { padding: 10px; border-bottom: 1px dotted var(--border); cursor: pointer; border-radius: 4px; }
   .verse.hl { background-color: var(--highlight-color); color: #000; }
   .verse strong { color: #c62828; margin-right: 10px; font-size: 0.85em; }
   body.dark .verse strong { color: #ffab91; }
 
+  /* 章節按鈕 ✅ 顯示 */
+  .chapter-btn.completed::after { content: ' ✅'; float: right; font-size: 14px; }
+
   #notes-area { margin-top: 40px; padding: 15px; border: 1px solid var(--border); border-radius: 8px; }
   #notes-input {
     width: 100%; height: 120px; background: transparent; color: var(--text);
-    border: 1px solid var(--border); padding: 10px; font-size: 16px; border-radius: 4px; resize: vertical;
+    border: 1px solid var(--border); padding: 10px; font-size: 16px; border-radius: 4px;
   }
 
   .book-btn, .chapter-btn {
     width: 100%; padding: 14px; border: none; background: none;
-    text-align: left; color: var(--text); border-bottom: 1px solid var(--border); font-size: 16px;
+    text-align: left; color: var(--text); border-bottom: 1px solid var(--border); font-size: 16px; cursor: pointer;
   }
+  .search-result-item { padding: 15px; border-bottom: 1px solid var(--border); cursor: pointer; line-height: 1.5; }
   .chapter-nav { display: flex; justify-content: space-between; margin: 30px 0; }
 </style>
 </head>
-<body class="default"> <header>
+<body class="default">
+
+<header>
   <div class="btn-group">
     <button id="menu-toggle" onclick="toggleMenu()">☰ 經卷</button>
     <button onclick="changeTheme('sepia')">🌾 護眼</button>
     <button onclick="changeTheme('dark')">🌙 深色</button>
   </div>
   <div class="btn-group">
-    <button onclick="exportData()">💾 匯出</button>
-    <button onclick="document.getElementById('importFile').click()">🔄 匯入</button>
+    <button onclick="exportData()" title="備份資料">💾 匯出</button>
+    <button onclick="document.getElementById('importFile').click()" title="還原資料">🔄 匯入</button>
     <input type="file" id="importFile" style="display:none" onchange="handleFile(this)">
+  </div>
+  <div class="btn-group">
+    <button onclick="changeFont(-2)">A−</button>
+    <button onclick="changeFont(2)">A+</button>
   </div>
 </header>
 
 <div id="layout">
-  <nav id="drawer"></nav>
-  <main id="content">載入中...</main>
+  <nav id="drawer">
+    <div id="search-box">
+      <input type="text" id="search-input" placeholder="搜尋關鍵字...">
+      <button onclick="executeSearch()">🔍</button>
+    </div>
+    <div id="drawer-content"></div>
+  </nav>
+  <main id="content">讀取中...</main>
 </div>
 
 <script src="./books.js"></script>
@@ -97,70 +126,108 @@ let bible = {};
 let currentBook = null;
 let currentChapter = null;
 
-// --- 主題記憶功能 ---
+/* 主題記憶 */
 function applySavedTheme() {
-  const savedTheme = localStorage.getItem('userTheme');
-  if (savedTheme) {
-    document.body.classList.remove('dark', 'sepia');
-    if (savedTheme !== 'default') {
-      document.body.classList.add(savedTheme);
-    }
-  }
+  const t = localStorage.getItem('userTheme') || 'default';
+  document.body.classList.remove('dark', 'sepia');
+  if (t !== 'default') document.body.classList.add(t);
 }
-
 function changeTheme(t) {
   const b = document.body;
-  let activeTheme = 'default';
-
+  let active = 'default';
   if (t === 'dark') {
-    if (b.classList.contains('dark')) {
-      b.classList.remove('dark');
-    } else {
-      b.classList.add('dark');
-      b.classList.remove('sepia');
-      activeTheme = 'dark';
-    }
-  } else if (t === 'sepia') {
-    if (b.classList.contains('sepia')) {
-      b.classList.remove('sepia');
-    } else {
-      b.classList.add('sepia');
-      b.classList.remove('dark');
-      activeTheme = 'sepia';
-    }
+    b.classList.toggle('dark'); b.classList.remove('sepia');
+    if(b.classList.contains('dark')) active = 'dark';
+  } else {
+    b.classList.toggle('sepia'); b.classList.remove('dark');
+    if(b.classList.contains('sepia')) active = 'sepia';
   }
-  
-  // 如果身上什麼都沒有，就是 default
-  if (!b.classList.contains('dark') && !b.classList.contains('sepia')) {
-    activeTheme = 'default';
-  }
-  
-  localStorage.setItem('userTheme', activeTheme);
+  localStorage.setItem('userTheme', active);
 }
-
-// 初始化時立即套用主題
 applySavedTheme();
 
-function toggleMenu() { document.getElementById('drawer').classList.toggle('open'); }
-
-/* 數據解析與顯示 */
+/* 數據加載 */
 fetch('./bible.txt').then(r => r.text()).then(text => {
   text.split(/\r?\n/).forEach(line => {
     const m = line.trim().match(/^([\u4e00-\u9fa5\w]+)\s+(\d+):(\d+)\s+(.*)$/);
     if (!m) return;
     const [, b, ch, v, verse] = m;
     const chNum = parseInt(ch);
-    bible[b] ??= {};
-    bible[b][chNum] ??= [];
+    bible[b] ??= {}; bible[b][chNum] ??= [];
     bible[b][chNum].push({ v, verse });
   });
   renderBooks();
   autoResume();
 });
 
+function toggleMenu() { document.getElementById('drawer').classList.toggle('open'); }
+function changeFont(d) {
+  let s = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--font-size'));
+  document.documentElement.style.setProperty('--font-size', Math.max(14, s + d) + 'px');
+}
+
+/* 搜尋功能 */
+function executeSearch() {
+  const key = document.getElementById('search-input').value.trim();
+  if (!key) return;
+  let results = [];
+  for (let b in bible) {
+    for (let ch in bible[b]) {
+      bible[b][ch].forEach(v => {
+        if (v.verse.includes(key)) results.push({ b, ch, v: v.v, text: v.verse });
+      });
+    }
+  }
+  let html = `<h3>搜尋結果: "${key}" (${results.length})</h3>`;
+  results.forEach(res => {
+    const hlText = res.text.replace(new RegExp(key, 'g'), `<span class="match-hl">${key}</span>`);
+    html += `<div class="search-result-item" onclick="showChapter('${res.b}', ${res.ch})">
+               <small>${BOOKS[res.b]} ${res.ch}:${res.v}</small><br>${hlText}
+             </div>`;
+  });
+  document.getElementById('content').innerHTML = html;
+  if(window.innerWidth < 1024) toggleMenu();
+}
+
+/* 顯示內容 */
+function showChapter(book, ch) {
+  currentBook = book; currentChapter = ch;
+  localStorage.setItem('lastRead', JSON.stringify({book, ch}));
+  document.getElementById('drawer').classList.remove('open');
+  window.scrollTo(0,0);
+
+  const isDone = localStorage.getItem(`prog_${book}_${ch}`) === 'true';
+  const highlights = JSON.parse(localStorage.getItem(`hl_${book}_${ch}`) || "[]");
+
+  let html = `<div class="read-header">
+                <h2>${BOOKS[book]} 第 ${ch} 章</h2>
+                <label><input type="checkbox" class="read-checkbox" onchange="toggleProgress('${book}', ${ch}, this)" ${isDone?'checked':''}> 已讀完</label>
+              </div>`;
+
+  html += bible[book][ch].map(v => {
+    const isHl = highlights.includes(v.v) ? 'hl' : '';
+    return `<div class="verse ${isHl}" id="v-${v.v}" onclick="toggleHighlight('${v.v}')">
+              <strong>${v.v}</strong>${v.verse}
+            </div>`;
+  }).join('');
+
+  html += `<div class="chapter-nav">
+             <button onclick="goPrev()">⬅ 上一章</button>
+             <button onclick="goNext()">下一章 ➡</button>
+           </div>
+           <div id="notes-area">
+             <h4>📝 本章筆記</h4>
+             <textarea id="notes-input" oninput="saveNote()"></textarea>
+           </div>`;
+  
+  document.getElementById('content').innerHTML = html;
+  document.getElementById('notes-input').value = localStorage.getItem(`note_${book}_${ch}`) || "";
+  renderChapters(book); // 更新側欄 ✅
+}
+
 function renderBooks() {
-  const dr = document.getElementById('drawer');
-  dr.innerHTML = '<h3 style="padding:15px">新舊約全書</h3>';
+  const dr = document.getElementById('drawer-content');
+  dr.innerHTML = '<h3 style="padding:15px">經卷目錄</h3>';
   Object.keys(BOOKS).forEach(b => {
     if (!bible[b]) return;
     const btn = document.createElement('button');
@@ -172,122 +239,86 @@ function renderBooks() {
 }
 
 function renderChapters(book) {
-  const dr = document.getElementById('drawer');
-  dr.innerHTML = `<button class="book-btn" onclick="renderBooks()" style="background:rgba(0,0,0,0.05)">⬅ 返回卷目</button>`;
+  const dr = document.getElementById('drawer-content');
+  dr.innerHTML = `<button class="book-btn" onclick="renderBooks()" style="background:rgba(0,0,0,0.05)">⬅ 返回目錄</button>`;
   Object.keys(bible[book]).map(Number).sort((a,b)=>a-b).forEach(ch => {
+    const isDone = localStorage.getItem(`prog_${book}_${ch}`) === 'true';
     const btn = document.createElement('button');
-    btn.className = 'chapter-btn';
+    btn.className = `chapter-btn ${isDone ? 'completed' : ''}`;
     btn.textContent = `${BOOKS[book]} 第 ${ch} 章`;
     btn.onclick = () => showChapter(book, ch);
     dr.appendChild(btn);
   });
 }
 
-function showChapter(book, ch) {
-  currentBook = book; currentChapter = ch;
-  localStorage.setItem('lastRead', JSON.stringify({book, ch}));
-  document.getElementById('drawer').classList.remove('open');
-  window.scrollTo(0,0);
-
-  const hlKey = `hl_${book}_${ch}`;
-  let highlights = JSON.parse(localStorage.getItem(hlKey) || "[]");
-
-  let html = `<h2>${BOOKS[book]} 第 ${ch} 章</h2>`;
-  html += bible[book][ch].map(v => {
-    const isHl = highlights.includes(v.v) ? 'hl' : '';
-    return `<div class="verse ${isHl}" id="v-${v.v}" onclick="toggleHighlight('${v.v}')">
-              <strong>${v.v}</strong>${v.verse}
-            </div>`;
-  }).join('');
-
-  html += `
-    <div class="chapter-nav">
-      <button onclick="goPrev()">⬅ 上一章</button>
-      <button onclick="goNext()">下一章 ➡</button>
-    </div>
-    <div id="notes-area">
-      <h4>📝 本章筆記</h4>
-      <textarea id="notes-input" placeholder="在此輸入心得..." oninput="saveNote()"></textarea>
-    </div>`;
-  
-  document.getElementById('content').innerHTML = html;
-  const noteKey = `note_${book}_${ch}`;
-  document.getElementById('notes-input').value = localStorage.getItem(noteKey) || "";
+function toggleProgress(book, ch, el) {
+  localStorage.setItem(`prog_${book}_${ch}`, el.checked);
+  renderChapters(book);
 }
 
 function toggleHighlight(vNum) {
   const el = document.getElementById(`v-${vNum}`);
   el.classList.toggle('hl');
-  const hlKey = `hl_${currentBook}_${currentChapter}`;
-  let highlights = JSON.parse(localStorage.getItem(hlKey) || "[]");
-  if(el.classList.contains('hl')) { if(!highlights.includes(vNum)) highlights.push(vNum); }
-  else { highlights = highlights.filter(i => i !== vNum); }
-  localStorage.setItem(hlKey, JSON.stringify(highlights));
+  const key = `hl_${currentBook}_${currentChapter}`;
+  let hls = JSON.parse(localStorage.getItem(key) || "[]");
+  if(el.classList.contains('hl')) { if(!hls.includes(vNum)) hls.push(vNum); }
+  else { hls = hls.filter(i => i !== vNum); }
+  localStorage.setItem(key, JSON.stringify(hls));
 }
 
 function saveNote() {
-  const val = document.getElementById('notes-input').value;
-  localStorage.setItem(`note_${currentBook}_${currentChapter}`, val);
+  localStorage.setItem(`note_${currentBook}_${currentChapter}`, document.getElementById('notes-input').value);
 }
 
 function autoResume() {
   const saved = JSON.parse(localStorage.getItem('lastRead'));
   if(saved && bible[saved.book]) showChapter(saved.book, saved.ch);
-  else document.getElementById('content').innerHTML = "請從選單選擇經卷開始閱讀";
+  else document.getElementById('content').innerHTML = "請從選單選擇經卷";
 }
 
-/* 備份與還原 */
+/* 備份還原 */
 function exportData() {
-  const data = JSON.stringify(localStorage);
-  const blob = new Blob([data], {type: 'application/json'});
+  const blob = new Blob([JSON.stringify(localStorage)], {type: 'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `bible_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.download = `bible_pwa_backup.json`;
   a.click();
 }
-
 function handleFile(input) {
-  const file = input.files[0];
-  if (!file) return;
   const reader = new FileReader();
   reader.onload = (e) => {
-    try {
-      const data = JSON.parse(e.target.result);
-      if (confirm("這將還原檔案中的設定與筆記，確定嗎？")) {
-        localStorage.clear();
-        for (let key in data) localStorage.setItem(key, data[key]);
-        location.reload();
-      }
-    } catch (err) { alert("檔案讀取失敗。"); }
+    const data = JSON.parse(e.target.result);
+    if (confirm("這將還原所有筆記、進度與設定，確定嗎？")) {
+      localStorage.clear();
+      for (let k in data) localStorage.setItem(k, data[k]);
+      location.reload();
+    }
   };
-  reader.readAsText(file);
+  reader.readAsText(input.files[0]);
 }
 
-// 導航邏輯
 function goPrev() {
-  const chapters = Object.keys(bible[currentBook]).map(Number).sort((a,b)=>a-b);
-  const i = chapters.indexOf(currentChapter);
-  if (i > 0) return showChapter(currentBook, chapters[i-1]);
-  const books = Object.keys(BOOKS);
-  const bi = books.indexOf(currentBook);
+  const chs = Object.keys(bible[currentBook]).map(Number).sort((a,b)=>a-b);
+  const i = chs.indexOf(currentChapter);
+  if (i > 0) return showChapter(currentBook, chs[i-1]);
+  const bks = Object.keys(BOOKS);
+  const bi = bks.indexOf(currentBook);
   if (bi > 0) {
-    const pb = books[bi-1];
+    const pb = bks[bi-1];
     const last = Math.max(...Object.keys(bible[pb]).map(Number));
     showChapter(pb, last);
   }
 }
 function goNext() {
-  const chapters = Object.keys(bible[currentBook]).map(Number).sort((a,b)=>a-b);
-  const i = chapters.indexOf(currentChapter);
-  if (i < chapters.length-1) return showChapter(currentBook, chapters[i+1]);
-  const books = Object.keys(BOOKS);
-  const bi = books.indexOf(currentBook);
-  if (bi < books.length-1) showChapter(books[bi+1], 1);
+  const chs = Object.keys(bible[currentBook]).map(Number).sort((a,b)=>a-b);
+  const i = chs.indexOf(currentChapter);
+  if (i < chs.length-1) return showChapter(currentBook, chs[i+1]);
+  const bks = Object.keys(BOOKS);
+  const bi = bks.indexOf(currentBook);
+  if (bi < bks.length-1) showChapter(bks[bi+1], 1);
 }
 
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./service-worker.js');
-}
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./service-worker.js');
 </script>
 </body>
 </html>
