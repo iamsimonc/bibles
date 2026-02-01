@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>聖經研讀 PWA (導航強化版)</title>
+<title>聖經研讀 PWA (智慧導航版)</title>
 <link rel="manifest" href="./manifest.json">
 <style>
   * { box-sizing: border-box; }
@@ -16,7 +16,6 @@
 
   body { margin: 0; font-family: system-ui, sans-serif; font-size: var(--font-size); background: var(--bg); color: var(--text); }
 
-  /* 雙層置頂 Header */
   header {
     position: fixed; top: 0; width: 100%; height: var(--header-h);
     background: var(--bg); border-bottom: 1px solid var(--border);
@@ -25,12 +24,10 @@
   .header-top { display: flex; justify-content: space-between; align-items: center; padding: 5px 12px; height: 50px; }
   .header-sub { display: flex; align-items: center; padding: 0 12px; height: 45px; background: rgba(0,0,0,0.02); border-top: 1px solid var(--border); }
   
-  /* 進度條樣式 */
   .prog-bg { width: 100%; height: 4px; background: var(--border); position: absolute; bottom: 0; left: 0; }
   #global-bar { height: 100%; background: var(--accent); width: 0%; transition: width 0.5s; }
   #book-bar { height: 100%; background: var(--book-accent); width: 0%; transition: width 0.5s; }
 
-  .btn-group { display: flex; gap: 5px; }
   header button { font-size: 13px; padding: 5px 8px; background: transparent; border: 1px solid var(--border); color: var(--text); border-radius: 4px; cursor: pointer; }
 
   #layout { display: flex; margin-top: var(--header-h); }
@@ -41,21 +38,23 @@
   main { flex: 1; padding: 20px 15px 80px; max-width: 800px; margin: 0 auto; }
 
   /* Summary 總覽頁樣式 */
-  .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-top: 20px; }
-  .summary-card { padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: rgba(0,0,0,0.02); cursor: pointer; }
-  .summary-card h4 { margin: 0 0 5px; font-size: 16px; }
-  .small-bar-bg { width: 100%; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-top: 20px; }
+  .summary-card { padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: rgba(0,0,0,0.02); cursor: pointer; position: relative; transition: transform 0.1s; }
+  .summary-card:active { transform: scale(0.98); }
+  .summary-card h4 { margin: 0 0 5px; font-size: 16px; color: var(--text); }
+  .resume-tag { font-size: 10px; background: var(--book-accent); color: white; padding: 2px 5px; border-radius: 3px; float: right; }
+  .small-bar-bg { width: 100%; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin-top: 8px; }
   .small-bar-fill { height: 100%; background: var(--book-accent); }
 
-  /* 經文與筆記 (保留之前邏輯) */
+  /* 經文與筆記 */
   .verse-wrapper { margin-bottom: 8px; border-bottom: 1px dotted var(--border); padding-bottom: 8px; }
   .verse { padding: 8px; border-radius: 6px; line-height: 1.8; display: flex; }
   .verse.hl { background-color: #fff176; color: #000 !important; }
   .verse strong { color: #c62828; margin-right: 10px; cursor: pointer; min-width: 25px; }
-  .v-note-input { width: 100%; height: 0; opacity: 0; overflow: hidden; transition: all 0.3s; background: rgba(0,0,0,0.04); border: none; }
+  .v-note-input { width: 100%; height: 0; opacity: 0; overflow: hidden; transition: all 0.3s; background: rgba(0,0,0,0.04); border: none; font-size: 15px; }
   .v-note-input.active { height: 80px; opacity: 1; padding: 8px; border: 1px solid var(--border); margin-top: 5px; }
   
-  .finish-chapter-box { margin: 30px 0; padding: 20px; background: rgba(76,175,80,0.1); border-radius: 8px; text-align: center; }
+  .finish-chapter-box { margin: 30px 0; padding: 25px; background: rgba(76,175,80,0.1); border: 1px dashed var(--book-accent); border-radius: 12px; text-align: center; }
   .chapter-btn.completed::after { content: ' ✅'; float: right; }
   .chapter-nav { display: flex; justify-content: space-between; margin: 20px 0; }
 
@@ -72,7 +71,7 @@
   <div class="header-top">
     <button onclick="toggleMenu()">☰ 目錄</button>
     <div id="global-txt" style="font-size: 11px; font-weight: bold;">全書: 0%</div>
-    <div class="btn-group">
+    <div style="display:flex; gap:5px;">
       <button onclick="changeTheme('sepia')">🌾</button>
       <button onclick="changeTheme('dark')">🌙</button>
       <button onclick="exportData()">💾</button>
@@ -87,7 +86,7 @@
 
 <div id="layout">
   <nav id="drawer">
-    <button class="book-btn" onclick="showSummary()" style="background: var(--accent); color: white; font-weight: bold;">📊 進度總覽 SUMMARY</button>
+    <button class="book-btn" onclick="showSummary()" style="width:100%; padding:15px; background: var(--accent); color: white; font-weight: bold; border:none; cursor:pointer;">📊 進度總覽 SUMMARY</button>
     <div id="drawer-content"></div>
   </nav>
   <main id="content">讀取中...</main>
@@ -98,7 +97,7 @@
 let bible = {};
 let currentBook = null, currentChapter = null;
 
-/* 初始化與主題 */
+/* 初始化 */
 function applyTheme() {
   const t = localStorage.getItem('userTheme') || 'default';
   document.body.classList.remove('dark', 'sepia');
@@ -112,7 +111,7 @@ function changeTheme(t) {
 }
 applyTheme();
 
-/* 進度核心更新 */
+/* 進度邏輯 */
 function refreshProgressUI() {
   let globalDone = 0;
   for(let i=0; i<localStorage.length; i++) {
@@ -144,23 +143,34 @@ fetch('./bible.txt').then(r => r.text()).then(text => {
   renderBooks(); autoResume(); refreshProgressUI();
 });
 
-/* 新增：進度總覽頁面 */
+/* 修改後的 Summary：點擊直接跳轉到未讀章節 */
 function showSummary() {
   currentBook = null;
   document.getElementById('drawer').classList.remove('open');
-  let html = `<h2>📊 閱讀進度總覽</h2><div class="summary-grid">`;
+  let html = `<h2>📊 閱讀進度總覽</h2><p style="font-size:14px; color:#666;">點擊經卷直接跳轉至「未讀」章節</p><div class="summary-grid">`;
   
   Object.keys(BOOKS).forEach(b => {
     if(!bible[b]) return;
-    const chs = Object.keys(bible[b]);
-    let done = 0;
-    chs.forEach(c => { if(localStorage.getItem(`prog_${b}_${c}`) === 'true') done++; });
-    const pc = ((done / chs.length) * 100).toFixed(0);
+    const chs = Object.keys(bible[b]).map(Number).sort((x,y)=>x-y);
+    let doneCount = 0;
+    let firstUnread = null;
+
+    chs.forEach(c => {
+      if(localStorage.getItem(`prog_${b}_${c}`) === 'true') {
+        doneCount++;
+      } else if (firstUnread === null) {
+        firstUnread = c; // 紀錄第一個沒讀的
+      }
+    });
+
+    const pc = ((doneCount / chs.length) * 100).toFixed(0);
+    const targetChapter = firstUnread || 1; // 如果全讀完了就回第1章
     
     html += `
-      <div class="summary-card" onclick="renderChapters('${b}')">
+      <div class="summary-card" onclick="showChapter('${b}', ${targetChapter})">
+        <span class="resume-tag">${firstUnread ? '續讀' : '重讀'}</span>
         <h4>${BOOKS[b]}</h4>
-        <div style="font-size:12px; margin-bottom:5px;">${done}/${chs.length} 章 (${pc}%)</div>
+        <div style="font-size:12px; margin-bottom:5px;">已讀 ${doneCount}/${chs.length} 章 (${pc}%)</div>
         <div class="small-bar-bg"><div class="small-bar-fill" style="width:${pc}%"></div></div>
       </div>`;
   });
@@ -179,7 +189,11 @@ function showChapter(book, ch) {
   const isDone = localStorage.getItem(`prog_${book}_${ch}`) === 'true';
   const hls = JSON.parse(localStorage.getItem(`hl_${book}_${ch}`) || "[]");
 
-  let html = `<h3>${BOOKS[book]} 第 ${ch} 章</h3>`;
+  let html = `<div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3>${BOOKS[book]} 第 ${ch} 章</h3>
+                <button onclick="renderChapters('${book}')" style="padding:4px 8px; font-size:12px;">選章節</button>
+              </div>`;
+              
   html += bible[book][ch].map(v => {
     const vNote = localStorage.getItem(`vnote_${book}_${ch}_${v.v}`) || "";
     return `<div class="verse-wrapper">
@@ -193,50 +207,52 @@ function showChapter(book, ch) {
 
   html += `
     <div class="finish-chapter-box">
-      <label style="cursor:pointer; font-weight:bold;">
-        <input type="checkbox" style="transform:scale(1.3)" onchange="toggleProgress('${book}',${ch},this)" ${isDone?'checked':''}> 已讀完本章
+      <label style="cursor:pointer; font-size:1.1em; color:var(--book-accent); font-weight:bold;">
+        <input type="checkbox" style="transform:scale(1.4); margin-right:10px;" onchange="toggleProgress('${book}',${ch},this)" ${isDone?'checked':''}> 
+        我已讀完本章經文
       </label>
     </div>
     <div class="chapter-nav"><button onclick="goPrev()">⬅ 上一章</button><button onclick="goNext()">下一章 ➡</button></div>
-    <textarea id="notes-input" style="width:100%;height:100px;margin-top:20px;" oninput="saveChapterNote()" placeholder="本章筆記..."></textarea>`;
+    <div id="notes-area">
+      <h4>📝 本章筆記</h4>
+      <textarea id="notes-input" style="width:100%;height:100px;" oninput="saveChapterNote()" placeholder="寫下對這一章的整體體會..."></textarea>
+    </div>`;
   
   document.getElementById('content').innerHTML = html;
   document.getElementById('notes-input').value = localStorage.getItem(`note_${book}_${ch}`) || "";
-  refreshProgressUI(); renderChapters(book);
+  refreshProgressUI();
 }
 
+/* 基本邏輯 */
 function toggleProgress(book, ch, el) {
   localStorage.setItem(`prog_${book}_${ch}`, el.checked);
-  refreshProgressUI(); renderChapters(book);
+  refreshProgressUI();
 }
-
-/* 目錄渲染 (分卷與分章) */
 function renderBooks() {
-  const dr = document.getElementById('drawer-content');
-  dr.innerHTML = '';
+  const dr = document.getElementById('drawer-content'); dr.innerHTML = '';
   const books = Object.keys(BOOKS);
-  const addSec = (t, start, end) => {
-    const d = document.createElement('div'); d.className = 'drawer-section'; d.textContent = t;
-    dr.appendChild(d);
-    books.slice(start, end).forEach(b => { if(bible[b]) dr.appendChild(createBtn(b)); });
+  const addSec = (t, s, e) => {
+    const d = document.createElement('div'); d.className = 'drawer-section'; d.style.padding="10px"; d.style.background="#eee"; d.textContent = t; dr.appendChild(d);
+    books.slice(s, e).forEach(b => { if(bible[b]) {
+      const btn = document.createElement('button'); btn.className = 'book-btn'; btn.style.width="100%"; btn.style.padding="12px"; btn.style.textAlign="left"; btn.style.border="none"; btn.style.background="none"; btn.style.borderBottom="1px solid #eee";
+      btn.textContent = BOOKS[b]; btn.onclick = () => renderChapters(b); dr.appendChild(btn);
+    }});
   };
   addSec('舊約', 0, 39); addSec('新約', 39, 66);
 }
-function createBtn(b) {
-  const btn = document.createElement('button'); btn.className = 'book-btn'; btn.style.width="100%";
-  btn.textContent = BOOKS[b]; btn.onclick = () => renderChapters(b); return btn;
-}
 function renderChapters(book) {
   const dr = document.getElementById('drawer-content');
-  dr.innerHTML = `<button class="book-btn" onclick="renderBooks()" style="width:100%;background:#eee;">⬅ 返回卷目</button>`;
+  dr.innerHTML = `<button onclick="renderBooks()" style="width:100%;padding:15px;background:#eee;border:none;">⬅ 返回卷目</button>`;
   Object.keys(bible[book]).map(Number).sort((a,b)=>a-b).forEach(ch => {
-    const btn = document.createElement('button'); btn.className = `chapter-btn ${localStorage.getItem(`prog_${book}_${ch}`)==='true'?'completed':''}`;
-    btn.style.width="100%"; btn.textContent = `${BOOKS[book]} ${ch}章`; btn.onclick = () => showChapter(book, ch);
-    dr.appendChild(btn);
+    const btn = document.createElement('button');
+    btn.className = `chapter-btn ${localStorage.getItem(`prog_${book}_${ch}`)==='true'?'completed':''}`;
+    btn.style.width="100%"; btn.style.padding="12px"; btn.style.textAlign="left"; btn.style.border="none"; btn.style.background="none"; btn.style.borderBottom="1px solid #eee";
+    btn.textContent = `${BOOKS[book]} 第 ${ch} 章`; btn.onclick = () => showChapter(book, ch); dr.appendChild(btn);
   });
+  if(window.innerWidth < 1024) document.getElementById('drawer').classList.add('open');
 }
 
-/* 其餘邏輯 (Highlight, Note, Nav, Export) */
+/* 其他核心函式 */
 function toggleHighlight(v) {
   const el = document.getElementById(`v-${v}`); el.classList.toggle('hl');
   const key = `hl_${currentBook}_${currentChapter}`;
@@ -249,10 +265,21 @@ function toggleNoteField(v) { const i = document.getElementById(`input-${v}`); i
 function saveVerseNote(v, el) { localStorage.setItem(`vnote_${currentBook}_${currentChapter}_${v}`, el.value); }
 function saveChapterNote() { localStorage.setItem(`note_${currentBook}_${currentChapter}`, document.getElementById('notes-input').value); }
 function toggleMenu() { document.getElementById('drawer').classList.toggle('open'); }
-function autoResume() { const s = JSON.parse(localStorage.getItem('lastRead')); if(s && bible[s.book]) showChapter(s.book, s.ch); }
-function goPrev() { /* 同前 ... */ } function goNext() { /* 同前 ... */ }
-function exportData() { const b = new Blob([JSON.stringify(localStorage)], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'bible_study.json'; a.click(); }
-function handleFile(i) { const r = new FileReader(); r.onload = (e) => { const d = JSON.parse(e.target.result); localStorage.clear(); for(let k in d) localStorage.setItem(k, d[k]); location.reload(); }; r.readAsText(i.files[0]); }
+function autoResume() { const s = JSON.parse(localStorage.getItem('lastRead')); if(s && bible[s.book]) showChapter(s.book, s.ch); else showSummary(); }
+function goPrev() {
+  const chs = Object.keys(bible[currentBook]).map(Number).sort((a,b)=>a-b);
+  const i = chs.indexOf(currentChapter);
+  if (i > 0) return showChapter(currentBook, chs[i-1]);
+}
+function goNext() {
+  const chs = Object.keys(bible[currentBook]).map(Number).sort((a,b)=>a-b);
+  const i = chs.indexOf(currentChapter);
+  if (i < chs.length-1) return showChapter(currentBook, chs[i+1]);
+}
+function exportData() {
+  const b = new Blob([JSON.stringify(localStorage)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'bible_study_backup.json'; a.click();
+}
 </script>
 </body>
 </html>
