@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>聖經研讀 PWA (導航同步版)</title>
+<title>聖經研讀 PWA (進度修復版)</title>
 <link rel="manifest" href="./manifest.json">
 <style>
   * { box-sizing: border-box; }
@@ -44,6 +44,18 @@
   .book-btn:hover, .chapter-btn:hover { background: rgba(128,128,128,0.1); }
   .chapter-btn.active { background: rgba(33, 150, 243, 0.15); font-weight: bold; border-left: 4px solid var(--accent); }
   .chapter-btn.completed::after { content: ' ✅'; float: right; }
+
+  /* 進度總覽網格 */
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; margin-top: 20px; }
+  .summary-card { 
+    padding: 15px; border: 1px solid var(--border); border-radius: 12px; 
+    background: rgba(128,128,128,0.05); cursor: pointer; position: relative; transition: transform 0.2s;
+  }
+  .summary-card:hover { transform: translateY(-3px); background: rgba(128,128,128,0.1); }
+  .summary-card h4 { margin: 0 0 8px; font-size: 18px; color: var(--text); }
+  .resume-tag { font-size: 11px; background: var(--book-accent); color: white; padding: 2px 6px; border-radius: 4px; float: right; }
+  .small-bar-bg { width: 100%; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; margin-top: 10px; }
+  .small-bar-fill { height: 100%; background: var(--book-accent); transition: width 0.3s; }
 
   .note-item { padding: 15px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; background: rgba(255,152,0,0.05); cursor: pointer; border-left: 4px solid var(--note-accent); }
   .note-meta { font-size: 12px; color: var(--note-accent); font-weight: bold; margin-bottom: 5px; }
@@ -192,32 +204,43 @@ function showNotesSummary() {
   document.getElementById('book-txt').textContent = "筆記總覽";
 }
 
+// 修正：補回進度卡片的渲染
 function showSummary() {
   currentBook = null;
-  let html = `<h2>📊 閱讀進度總覽</h2><div class="summary-grid">` + 
-    Object.keys(BOOKS).map(b => {
-      if(!bible[b]) return '';
-      const chs = Object.keys(bible[b]).map(Number).sort((x,y)=>x-y);
-      let done = 0, firstUnread = null;
-      chs.forEach(c => { if(localStorage.getItem(`prog_${b}_${c}`) === 'true') done++; else if (firstUnread === null) firstUnread = c; });
-      const pc = ((done / chs.length) * 100).toFixed(0);
-      return `<div class="summary-card" onclick="showChapter('${b}', ${firstUnread || 1})">
-               <span class="resume-tag">${firstUnread ? '續讀' : '重讀'}</span><h4>${BOOKS[b]}</h4>
-               <div style="font-size:12px;">${done}/${chs.length} 章 (${pc}%)</div>
-               <div class="small-bar-bg"><div class="small-bar-fill" style="width:${pc}%"></div></div></div>`;
-    }).join('') + `</div>`;
+  let html = `<h2>📊 閱讀進度總覽</h2><div class="summary-grid">`;
+  
+  Object.keys(BOOKS).forEach(b => {
+    if(!bible[b]) return;
+    const chs = Object.keys(bible[b]).map(Number).sort((x,y)=>x-y);
+    let done = 0, firstUnread = null;
+    
+    chs.forEach(c => {
+      if(localStorage.getItem(`prog_${b}_${c}`) === 'true') done++;
+      else if (firstUnread === null) firstUnread = c;
+    });
+    
+    const pc = ((done / chs.length) * 100).toFixed(0);
+    html += `
+      <div class="summary-card" onclick="showChapter('${b}', ${firstUnread || 1})">
+        <span class="resume-tag">${firstUnread ? '續讀' : '重讀'}</span>
+        <h4>${BOOKS[b]}</h4>
+        <div style="font-size:13px; color:gray;">${done} / ${chs.length} 章</div>
+        <div style="font-size:13px; font-weight:bold; color:var(--book-accent); text-align:right;">${pc}%</div>
+        <div class="small-bar-bg">
+          <div class="small-bar-fill" style="width:${pc}%"></div>
+        </div>
+      </div>`;
+  });
+  
+  html += `</div>`;
   document.getElementById('content').innerHTML = html;
   document.getElementById('book-txt').textContent = "進度總覽";
 }
 
-// 修復重點：showChapter 現在會「強制」刷新側邊欄
 function showChapter(book, ch) {
   currentBook = book; currentChapter = ch;
   localStorage.setItem('lastRead', JSON.stringify({book, ch}));
-  
-  // 1. 強制渲染側邊欄清單
   renderChapters(book);
-
   if(window.innerWidth < 1024) document.getElementById('drawer').classList.remove('open');
   window.scrollTo(0,0);
   
@@ -249,7 +272,7 @@ function showChapter(book, ch) {
 function toggleProgress(book, ch, el) { 
   localStorage.setItem(`prog_${book}_${ch}`, el.checked); 
   refreshProgressUI();
-  renderChapters(book); // 勾選時也重新渲染，保證 ✅ 同步
+  renderChapters(book);
 }
 
 function renderBooks() {
@@ -266,14 +289,12 @@ function renderBooks() {
 function renderChapters(book) {
   const dr = document.getElementById('drawer-content');
   let html = `<button class="book-btn" onclick="renderBooks()" style="background:rgba(128,128,128,0.1); font-weight:bold;">⬅ 返回卷目</button>`;
-  
   Object.keys(bible[book]).map(Number).sort((a,b)=>a-b).forEach(ch => {
     const isCompleted = localStorage.getItem(`prog_${book}_${ch}`) === 'true';
     const isActive = (currentBook === book && currentChapter === ch);
-    html += `<button class="chapter-btn ${isCompleted ? 'completed' : ''} ${isActive ? 'active' : ''}" 
-             onclick="showChapter('${book}', ${ch})">${BOOKS[book]} 第 ${ch} 章</button>`;
+    html += `<button class="chapter-btn ${isCompleted ? 'completed' : ''} ${isActive ? 'active' : ''}" onclick="showChapter('${book}', ${ch})">${BOOKS[book]} 第 ${ch} 章</button>`;
   });
-  dr.innerHTML = html; // 強制刷新 DOM
+  dr.innerHTML = html;
 }
 
 function toggleHighlight(v) {
