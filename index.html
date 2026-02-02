@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>聖經研讀 PWA (筆記總覽版)</title>
+<title>聖經研讀 PWA (標記修復版)</title>
 <link rel="manifest" href="./manifest.json">
 <style>
   * { box-sizing: border-box; }
@@ -46,7 +46,9 @@
   }
   .book-btn:hover, .chapter-btn:hover { background: rgba(128,128,128,0.1); }
   
-  /* 筆記卡片樣式 */
+  /* 章節清單已讀標記樣式 */
+  .chapter-btn.completed::after { content: ' ✅'; float: right; }
+
   .note-item { padding: 15px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; background: rgba(255,152,0,0.05); cursor: pointer; border-left: 4px solid var(--note-accent); }
   .note-meta { font-size: 12px; color: var(--note-accent); font-weight: bold; margin-bottom: 5px; }
   .note-content { font-size: 16px; line-height: 1.5; color: var(--text); }
@@ -113,6 +115,7 @@
 <script>
 let bible = {};
 let currentBook = null, currentChapter = null;
+let currentListView = 'books'; // 追蹤目前側邊欄顯示的是什麼
 
 function applyTheme() {
   const t = localStorage.getItem('userTheme') || 'default';
@@ -158,7 +161,6 @@ fetch('./bible.txt').then(r => r.text()).then(text => {
   renderBooks(); autoResume(); refreshProgressUI();
 });
 
-/* 搜尋功能 */
 function executeSearch() {
   const key = document.getElementById('search-input').value.trim();
   if(!key) return;
@@ -177,54 +179,41 @@ function executeSearch() {
   document.getElementById('content').innerHTML = h;
 }
 
-/* 新增：筆記總覽功能 */
 function showNotesSummary() {
   currentBook = null;
   document.getElementById('drawer').classList.remove('open');
   let notes = [];
-  
   for(let i=0; i<localStorage.length; i++) {
     const key = localStorage.key(i);
     const value = localStorage.getItem(key);
     if(!value || value.trim() === "") continue;
-
-    // 處理章筆記 note_Book_Chapter
     if(key.startsWith('note_')) {
       const parts = key.split('_');
-      if(parts.length === 3) {
-        notes.push({ type: '章筆記', book: parts[1], ch: parts[2], text: value });
-      }
+      if(parts.length === 3) notes.push({ type: '章筆記', book: parts[1], ch: parts[2], text: value });
     }
-    // 處理節筆記 vnote_Book_Chapter_Verse
     if(key.startsWith('vnote_')) {
       const parts = key.split('_');
-      if(parts.length === 4) {
-        notes.push({ type: '節筆記', book: parts[1], ch: parts[2], verse: parts[3], text: value });
-      }
+      if(parts.length === 4) notes.push({ type: '節筆記', book: parts[1], ch: parts[2], verse: parts[3], text: value });
     }
   }
-
   let html = `<h2>📝 我的靈修筆記</h2>`;
   if(notes.length === 0) {
-    html += `<p style="color:gray; text-align:center; margin-top:50px;">目前還沒有任何筆記。<br>在讀經時點擊經文或下方筆記框即可記錄！</p>`;
+    html += `<p style="color:gray; text-align:center; margin-top:50px;">目前還沒有任何筆記。</p>`;
   } else {
-    // 按卷目簡單排序
     notes.sort((a,b) => a.book.localeCompare(b.book));
     notes.forEach(n => {
       const title = n.type === '章筆記' ? `${BOOKS[n.book]} 第 ${n.ch} 章` : `${BOOKS[n.book]} ${n.ch}:${n.verse}`;
       html += `
         <div class="note-item" onclick="showChapter('${n.book}', ${n.ch})">
           <div class="note-meta">${n.type} | ${title}</div>
-          <div class="note-content">${n.text.substring(0, 100)}${n.text.length > 100 ? '...' : ''}</div>
+          <div class="note-content">${n.text}</div>
         </div>`;
     });
   }
   document.getElementById('content').innerHTML = html;
   document.getElementById('book-txt').textContent = "筆記總覽";
-  document.getElementById('book-bar').style.width = "0%";
 }
 
-/* 總覽頁面 */
 function showSummary() {
   currentBook = null;
   document.getElementById('drawer').classList.remove('open');
@@ -247,7 +236,6 @@ function showSummary() {
   });
   document.getElementById('content').innerHTML = html + `</div>`;
   document.getElementById('book-txt').textContent = "進度總覽";
-  document.getElementById('book-bar').style.width = "0%";
 }
 
 function showChapter(book, ch) {
@@ -280,9 +268,17 @@ function showChapter(book, ch) {
   refreshProgressUI();
 }
 
-function toggleProgress(book, ch, el) { localStorage.setItem(`prog_${book}_${ch}`, el.checked); refreshProgressUI(); }
+function toggleProgress(book, ch, el) { 
+  localStorage.setItem(`prog_${book}_${ch}`, el.checked); 
+  refreshProgressUI();
+  // 核心修復：如果側邊欄目前顯示的是該卷書的清單，即時刷新它
+  if(currentListView === `chapters_${book}`) {
+    renderChapters(book); 
+  }
+}
 
 function renderBooks() {
+  currentListView = 'books';
   const dr = document.getElementById('drawer-content'); dr.innerHTML = '';
   const addSec = (t, s, e) => {
     const d = document.createElement('div'); d.className = 'drawer-section'; d.textContent = t; d.style.padding="10px"; d.style.background="rgba(128,128,128,0.08)"; dr.appendChild(d);
@@ -294,14 +290,19 @@ function renderBooks() {
 }
 
 function renderChapters(book) {
+  currentListView = `chapters_${book}`;
   const dr = document.getElementById('drawer-content');
   dr.innerHTML = `<button class="book-btn" onclick="renderBooks()" style="background:rgba(128,128,128,0.1); font-weight:bold;">⬅ 返回卷目</button>`;
   Object.keys(bible[book]).map(Number).sort((a,b)=>a-b).forEach(ch => {
-    const btn = document.createElement('button'); btn.className = `chapter-btn ${localStorage.getItem(`prog_${book}_${ch}`)==='true'?'completed':''}`;
+    const btn = document.createElement('button'); 
+    // 檢查 localStorage 狀態
+    const isCompleted = localStorage.getItem(`prog_${book}_${ch}`) === 'true';
+    btn.className = `chapter-btn ${isCompleted ? 'completed' : ''}`;
     btn.textContent = `${BOOKS[book]} 第 ${ch} 章`; btn.onclick = () => showChapter(book, ch); dr.appendChild(btn);
   });
 }
 
+/* 互動與導航 */
 function toggleHighlight(v) {
   const el = document.getElementById(`v-${v}`); el.classList.toggle('hl');
   const key = `hl_${currentBook}_${currentChapter}`;
@@ -338,8 +339,8 @@ function handleFile(i) {
   r.onload = (e) => {
     try {
       const d = JSON.parse(e.target.result);
-      if(confirm("確定要還原備份嗎？")) { localStorage.clear(); for(let k in d) localStorage.setItem(k, d[k]); location.reload(); }
-    } catch(err) { alert("檔案格式錯誤"); }
+      if(confirm("還原備份將覆蓋目前進度，確定嗎？")) { localStorage.clear(); for(let k in d) localStorage.setItem(k, d[k]); location.reload(); }
+    } catch(err) { alert("檔案錯誤"); }
   };
   r.readAsText(i.files[0]);
 }
