@@ -331,8 +331,20 @@ function goNext() {
 
 /* 備份功能 */
 function exportData() {
+  // 1. 獲取當前日期
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0'); // 月份從0開始，所以要+1
+  const day = String(now.getDate()).padStart(2, '0');
+  const dateStr = `${year}${month}${day}`; // 格式化為 20260202
+
   const b = new Blob([JSON.stringify(localStorage)], {type:'application/json'});
-  const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'bible_study_backup.json'; a.click();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(b);
+  
+  // 2. 將日期字串放入檔名
+  a.download = `bible_study_backup${dateStr}.json`; 
+  a.click();
 }
 function handleFile(i) {
   const r = new FileReader();
