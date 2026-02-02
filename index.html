@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>聖經研讀 PWA (進度修復版)</title>
+<title>聖經研讀 PWA (手機優化版)</title>
 <link rel="manifest" href="./manifest.json">
 <style>
   * { box-sizing: border-box; }
@@ -19,7 +19,7 @@
   header {
     position: fixed; top: 0; width: 100%; height: var(--header-h);
     background: var(--bg); border-bottom: 1px solid var(--border);
-    display: flex; flex-direction: column; z-index: 1000;
+    display: flex; flex-direction: column; z-index: 1001;
   }
   .header-top { display: flex; justify-content: space-between; align-items: center; padding: 5px 12px; height: 50px; }
   .header-sub { display: flex; align-items: center; padding: 0 12px; height: 45px; background: rgba(128,128,128,0.05); border-top: 1px solid var(--border); position: relative; }
@@ -33,9 +33,10 @@
   #layout { display: flex; }
   #drawer {
     width: var(--sidebar-w); height: calc(100vh - var(--header-h));
-    position: fixed; left: 0; background: var(--bg); border-right: 1px solid var(--border); overflow-y: auto; z-index: 999;
+    position: fixed; left: 0; background: var(--bg); border-right: 1px solid var(--border); overflow-y: auto; z-index: 1000;
+    transition: transform 0.3s ease;
   }
-  main { flex: 1; padding: 20px 15px 80px; max-width: 800px; margin: 0 auto; margin-left: var(--sidebar-w); }
+  main { flex: 1; padding: 20px 15px 80px; max-width: 800px; margin: 0 auto; margin-left: var(--sidebar-w); transition: margin-left 0.3s ease; }
 
   .book-btn, .chapter-btn { 
     width: 100%; padding: 14px; border: none; background: none; 
@@ -45,20 +46,12 @@
   .chapter-btn.active { background: rgba(33, 150, 243, 0.15); font-weight: bold; border-left: 4px solid var(--accent); }
   .chapter-btn.completed::after { content: ' ✅'; float: right; }
 
-  /* 進度總覽網格 */
-  .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; margin-top: 20px; }
-  .summary-card { 
-    padding: 15px; border: 1px solid var(--border); border-radius: 12px; 
-    background: rgba(128,128,128,0.05); cursor: pointer; position: relative; transition: transform 0.2s;
-  }
-  .summary-card:hover { transform: translateY(-3px); background: rgba(128,128,128,0.1); }
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-top: 20px; }
+  .summary-card { padding: 15px; border: 1px solid var(--border); border-radius: 12px; background: rgba(128,128,128,0.05); cursor: pointer; position: relative; }
   .summary-card h4 { margin: 0 0 8px; font-size: 18px; color: var(--text); }
   .resume-tag { font-size: 11px; background: var(--book-accent); color: white; padding: 2px 6px; border-radius: 4px; float: right; }
   .small-bar-bg { width: 100%; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; margin-top: 10px; }
-  .small-bar-fill { height: 100%; background: var(--book-accent); transition: width 0.3s; }
-
-  .note-item { padding: 15px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; background: rgba(255,152,0,0.05); cursor: pointer; border-left: 4px solid var(--note-accent); }
-  .note-meta { font-size: 12px; color: var(--note-accent); font-weight: bold; margin-bottom: 5px; }
+  .small-bar-fill { height: 100%; background: var(--book-accent); }
 
   .verse-wrapper { margin-bottom: 8px; border-bottom: 1px dotted var(--border); padding-bottom: 8px; }
   .verse { padding: 8px; border-radius: 6px; line-height: 1.8; display: flex; }
@@ -73,9 +66,10 @@
   .chapter-nav button { padding: 12px 20px; cursor: pointer; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; font-weight: bold; }
   #notes-input { width: 100%; height: 120px; background: transparent; color: var(--text); border: 1px solid var(--border); padding: 10px; border-radius: 4px; font-size: 16px; }
 
+  /* 手機版調整 */
   @media (max-width: 1023px) { 
-    #drawer { transform: translateX(-100%); transition: transform 0.3s; }
-    #drawer.open { transform: translateX(0); }
+    #drawer { transform: translateX(-100%); }
+    #drawer.open { transform: translateX(0); box-shadow: 5px 0 15px rgba(0,0,0,0.2); }
     main { margin-left: 0; }
   }
 </style>
@@ -84,7 +78,7 @@
 
 <header>
   <div class="header-top">
-    <button onclick="toggleMenu()">☰ 目錄</button>
+    <button onclick="toggleMenu()" id="menu-btn">☰ 目錄</button>
     <div id="global-txt" style="font-size: 11px; font-weight: bold;">全書: 0%</div>
     <div style="display:flex; gap:5px;">
       <button onclick="changeTheme('sepia')">🌾</button>
@@ -165,9 +159,17 @@ fetch('./bible.txt').then(r => r.text()).then(text => {
   renderBooks(); autoResume(); refreshProgressUI();
 });
 
+// 手機版：執行關鍵操作後自動收起側欄
+function closeMenuOnMobile() {
+  if (window.innerWidth < 1024) {
+    document.getElementById('drawer').classList.remove('open');
+  }
+}
+
 function executeSearch() {
   const key = document.getElementById('search-input').value.trim();
   if(!key) return;
+  closeMenuOnMobile();
   let res = [];
   for(let b in bible) {
     for(let ch in bible[b]) {
@@ -181,6 +183,7 @@ function executeSearch() {
 
 function showNotesSummary() {
   currentBook = null;
+  closeMenuOnMobile();
   let notes = [];
   for(let i=0; i<localStorage.length; i++) {
     const key = localStorage.key(i), value = localStorage.getItem(key);
@@ -204,21 +207,15 @@ function showNotesSummary() {
   document.getElementById('book-txt').textContent = "筆記總覽";
 }
 
-// 修正：補回進度卡片的渲染
 function showSummary() {
   currentBook = null;
+  closeMenuOnMobile();
   let html = `<h2>📊 閱讀進度總覽</h2><div class="summary-grid">`;
-  
   Object.keys(BOOKS).forEach(b => {
     if(!bible[b]) return;
     const chs = Object.keys(bible[b]).map(Number).sort((x,y)=>x-y);
     let done = 0, firstUnread = null;
-    
-    chs.forEach(c => {
-      if(localStorage.getItem(`prog_${b}_${c}`) === 'true') done++;
-      else if (firstUnread === null) firstUnread = c;
-    });
-    
+    chs.forEach(c => { if(localStorage.getItem(`prog_${b}_${c}`) === 'true') done++; else if (firstUnread === null) firstUnread = c; });
     const pc = ((done / chs.length) * 100).toFixed(0);
     html += `
       <div class="summary-card" onclick="showChapter('${b}', ${firstUnread || 1})">
@@ -226,14 +223,10 @@ function showSummary() {
         <h4>${BOOKS[b]}</h4>
         <div style="font-size:13px; color:gray;">${done} / ${chs.length} 章</div>
         <div style="font-size:13px; font-weight:bold; color:var(--book-accent); text-align:right;">${pc}%</div>
-        <div class="small-bar-bg">
-          <div class="small-bar-fill" style="width:${pc}%"></div>
-        </div>
+        <div class="small-bar-bg"><div class="small-bar-fill" style="width:${pc}%"></div></div>
       </div>`;
   });
-  
-  html += `</div>`;
-  document.getElementById('content').innerHTML = html;
+  document.getElementById('content').innerHTML = html + `</div>`;
   document.getElementById('book-txt').textContent = "進度總覽";
 }
 
@@ -241,7 +234,7 @@ function showChapter(book, ch) {
   currentBook = book; currentChapter = ch;
   localStorage.setItem('lastRead', JSON.stringify({book, ch}));
   renderChapters(book);
-  if(window.innerWidth < 1024) document.getElementById('drawer').classList.remove('open');
+  closeMenuOnMobile();
   window.scrollTo(0,0);
   
   const isDone = localStorage.getItem(`prog_${book}_${ch}`) === 'true';
@@ -310,7 +303,13 @@ function saveVerseNote(v, el) {
   if(el.value.trim()) document.getElementById(`v-${v}`).classList.add('has-note-icon'); else document.getElementById(`v-${v}`).classList.remove('has-note-icon');
 }
 function saveChapterNote() { localStorage.setItem(`note_${currentBook}_${currentChapter}`, document.getElementById('notes-input').value); }
-function toggleMenu() { document.getElementById('drawer').classList.toggle('open'); }
+
+// 手動開關側欄：加入狀態判斷
+function toggleMenu() { 
+  const drawer = document.getElementById('drawer');
+  drawer.classList.toggle('open');
+}
+
 function autoResume() { const s = JSON.parse(localStorage.getItem('lastRead')); if(s && bible[s.book]) showChapter(s.book, s.ch); else showSummary(); }
 
 function goPrev() {
