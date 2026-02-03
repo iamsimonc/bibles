@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>聖經沉浸式閱讀 (全卷版)</title>
+<link rel="manifest" href="./manifest.json">
+<style>
+  * { box-sizing: border-box; }
+  :root { 
+    --font-size: 21px; --bg: #fdfdfd; --text: #1a1a1a; --border: #e0e0e0; 
+    --header-h: 95px; --sidebar-w: 300px; --accent: #2196f3; --book-accent: #4caf50; --note-accent: #ff9800;
+  }
+  body.dark { --bg: #121212; --text: #dcdcdc; --border: #333; }
+  body.sepia { --bg: #f4ecd8; --text: #5b4636; --border: #dcd0b9; }
+
+  body { margin: 0; font-family: "Microsoft JhengHei", "PingFang HK", serif; font-size: var(--font-size); background: var(--bg); color: var(--text); padding-top: var(--header-h); line-height: 2; }
+
+  header {
+    position: fixed; top: 0; width: 100%; height: var(--header-h);
+    background: var(--bg); border-bottom: 1px solid var(--border);
+    display: flex; flex-direction: column; z-index: 1000;
+  }
+  .header-top { display: flex; justify-content: space-between; align-items: center; padding: 5px 12px; height: 50px; }
+  .header-sub { display: flex; align-items: center; padding: 0 12px; height: 45px; background: rgba(128,128,128,0.05); border-top: 1px solid var(--border); position: relative; }
+  
+  .prog-bg { width: 100%; height: 4px; background: var(--border); position: absolute; bottom: 0; left: 0; }
+  #global-bar { height: 100%; background: var(--accent); width: 0%; transition: width 0.5s; }
+  #book-bar { height: 100%; background: var(--book-accent); width: 0%; transition: width 0.5s; }
+
+  header button { font-size: 13px; padding: 5px 8px; background: transparent; border: 1px solid var(--border); color: var(--text); border-radius: 4px; cursor: pointer; }
+
+  #layout { display: flex; }
+  #drawer {
+    width: var(--sidebar-w); height: calc(100vh - var(--header-h));
+    position: fixed; left: 0; background: var(--bg); border-right: 1px solid var(--border); overflow-y: auto; z-index: 999;
+  }
+  main { flex: 1; padding: 40px 25px 80px; max-width: 850px; margin: 0 auto; margin-left: var(--sidebar-w); }
+
+  /* 列表樣式 */
+  .book-btn { 
+    width: 100%; padding: 16px; border: none; background: none; 
+    text-align: left; color: var(--text); border-bottom: 1px solid var(--border); cursor: pointer; font-size: 17px; font-weight: 500;
+  }
+  .book-btn:hover { background: rgba(128,128,128,0.1); }
+
+  /* 沉浸式經文樣式 */
+  .reader-container { text-align: justify; }
+  .verse-inline { cursor: pointer; display: inline; position: relative; border-radius: 4px; transition: background 0.2s; }
+  .verse-inline:hover { background: rgba(33, 150, 243, 0.1); }
+  .verse-inline.hl { background-color: #fff176; color: #000; }
+  .verse-inline.has-note::after { content: '✎'; font-size: 12px; vertical-align: super; color: var(--note-accent); margin-left: 2px; }
+
+  /* 彈出筆記框 */
+  .v-note-input { 
+    display: none; width: 100%; height: 100px; margin: 10px 0; padding: 10px;
+    background: rgba(128,128,128,0.08); border: 1px solid var(--note-accent); 
+    color: var(--text); border-radius: 8px; font-size: 16px; resize: vertical;
+  }
+  .v-note-input.active { display: block; }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; padding: 10px; }
+  .summary-card { padding: 15px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; position: relative; }
+  .small-bar-bg { width: 100%; height: 4px; background: #eee; margin-top: 8px; }
+  .small-bar-fill { height: 100%; background: var(--book-accent); }
+
+  @media (max-width: 1023px) { 
+    #drawer { transform: translateX(-100%); transition: transform 0.3s; }
+    #drawer.open { transform: translateX(0); }
+    main { margin-left: 0; }
+  }
+</style>
+</head>
+<body class="sepia"> <header>
+  <div class="header-top">
+    <button onclick="toggleMenu()">☰ 目錄</button>
+    <div id="global-txt" style="font-size: 11px; font-weight: bold;">全書進度: 0%</div>
+    <div style="display:flex; gap:5px;">
+      <button onclick="changeTheme('sepia')">🌾</button>
+      <button onclick="changeTheme('dark')">🌙</button>
+      <button onclick="exportData()">💾</button>
+      <button onclick="document.getElementById('importFile').click()">🔄</button>
+      <input type="file" id="importFile" style="display:none" onchange="handleFile(this)">
+    </div>
+    <div class="prog-bg"><div id="global-bar"></div></div>
+  </div>
+  <div class="header-sub">
+    <div id="book-txt" style="font-size: 14px; font-weight: bold; color: var(--book-accent);">選擇書卷開始閱讀...</div>
+    <div class="prog-bg"><div id="book-bar"></div></div>
+  </div>
+</header>
+
+<div id="layout">
+  <nav id="drawer">
+    <div style="display: flex; border-bottom: 1px solid var(--border);">
+        <button onclick="showSummary()" style="flex:1; padding:15px; background: var(--accent); color: white; font-weight: bold; border:none; cursor:pointer;">📊 進度</button>
+        <button onclick="showNotesSummary()" style="flex:1; padding:15px; background: var(--note-accent); color: white; font-weight: bold; border:none; cursor:pointer;">📝 筆記</button>
+    </div>
+    <div id="drawer-content"></div>
+  </nav>
+  <main id="content">讀取中...</main>
+</div>
+
+<script src="./books.js"></script>
+<script>
+let bible = {};
+let currentBook = null;
+
+// --- 核心邏輯：數據處理 ---
+fetch('./bible.txt').then(r => r.text()).then(text => {
+  text.split(/\r?\n/).forEach(line => {
+    const m = line.trim().match(/^([\u4e00-\u9fa5\w]+)\s+(\d+):(\d+)\s+(.*)$/);
+    if (!m) return;
+    const [, b, ch, v, verseText] = m;
+    bible[b] ??= {}; bible[b][ch] ??= [];
+    bible[b][ch].push({ v, t: verseText });
+  });
+  renderBooks(); 
+  autoResume();
+  refreshProgressUI();
+});
+
+// --- 全卷沉浸式渲染 ---
+function showFullBook(book) {
+  currentBook = book;
+  localStorage.setItem('lastRead', JSON.stringify({book, mode: 'full'}));
+  
+  if(window.innerWidth < 1024) document.getElementById('drawer').classList.remove('open');
+  window.scrollTo(0,0);
+
+  let html = `<article class="reader-container">`;
+  html += `<h1 style="text-align:center; margin-bottom:10px;">${BOOKS[book]}</h1>`;
+  html += `<p style="text-align:center; color:gray; font-size:14px; margin-bottom:40px;">（沉浸模式：點擊經文可高亮或記筆記）</p>`;
+
+  const chapters = Object.keys(bible[book]).map(Number).sort((a,b)=>a-b);
+  
+  chapters.forEach(ch => {
+    const hls = JSON.parse(localStorage.getItem(`hl_${book}_${ch}`) || "[]");
+    
+    // 以段落形式呈現每一章
+    html += `<section style="margin-bottom: 2em;">`;
+    // html += `<span style="color:var(--accent); font-weight:bold; margin-right:8px;">${ch}</span>`; // 如果完全不要章號，註解此行
+    
+    bible[book][ch].forEach(v => {
+      const vNote = localStorage.getItem(`vnote_${book}_${ch}_${v.v}`) || "";
+      const isHl = hls.includes(v.v);
+      
+      html += `<div class="verse-inline ${isHl?'hl':''} ${vNote?'has-note':''}" 
+                    id="v-${ch}-${v.v}" 
+                    onclick="handleVerseClick(event, '${ch}', '${v.v}')">
+                ${v.t}
+               </div>
+               <textarea class="v-note-input" id="input-${ch}-${v.v}" 
+                         oninput="saveVerseNote('${ch}', '${v.v}', this)" 
+                         placeholder="關於 ${ch}:${v.v} 的筆記...">${vNote}</textarea>`;
+    });
+    html += `</section>`;
+  });
+
+  html += `</article>`;
+  html += `<div class="finish-chapter-box">
+            <label><input type="checkbox" onchange="toggleBookComplete('${book}', this)"> 我已讀完《${BOOKS[book]}》全卷</label>
+           </div>`;
+
+  document.getElementById('content').innerHTML = html;
+  document.getElementById('book-txt').textContent = BOOKS[book];
+  refreshProgressUI();
+}
+
+// --- 交互功能 ---
+function handleVerseClick(e, ch, v) {
+    // 短按切換筆記框，長按(或配合UI)切換高亮
+    const input = document.getElementById(`input-${ch}-${v}`);
+    const verseEl = document.getElementById(`v-${ch}-${v}`);
+    
+    // 如果點擊時按住 Alt 鍵則高亮，否則開關筆記
+    if (e.altKey) {
+        toggleHighlight(ch, v);
+    } else {
+        const allInputs = document.querySelectorAll('.v-note-input');
+        input.classList.toggle('active');
+        if(input.classList.contains('active')) input.focus();
+    }
+}
+
+function toggleHighlight(ch, v) {
+    const el = document.getElementById(`v-${ch}-${v}`);
+    el.classList.toggle('hl');
+    const key = `hl_${currentBook}_${ch}`;
+    let hls = JSON.parse(localStorage.getItem(key) || "[]");
+    if(el.classList.contains('hl')) hls.push(v); else hls = hls.filter(i => i !== v);
+    localStorage.setItem(key, JSON.stringify(hls));
+}
+
+function saveVerseNote(ch, v, el) {
+    localStorage.setItem(`vnote_${currentBook}_${ch}_${v}`, el.value);
+    const vEl = document.getElementById(`v-${ch}-${v}`);
+    if(el.value.trim()) vEl.classList.add('has-note'); else vEl.classList.remove('has-note');
+}
+
+// --- 進度與系統 ---
+function refreshProgressUI() {
+    let globalDone = 0;
+    Object.keys(BOOKS).forEach(b => {
+        if(localStorage.getItem(`book_done_${b}`) === 'true') globalDone++;
+    });
+    const gPercent = ((globalDone / 66) * 100).toFixed(1);
+    document.getElementById('global-bar').style.width = gPercent + '%';
+    document.getElementById('global-txt').textContent = `全書完成: ${globalDone}/66 卷`;
+
+    if(currentBook) {
+        const isDone = localStorage.getItem(`book_done_${currentBook}`) === 'true';
+        document.getElementById('book-bar').style.width = isDone ? '100%' : '0%';
+    }
+}
+
+function toggleBookComplete(book, el) {
+    localStorage.setItem(`book_done_${book}`, el.checked);
+    refreshProgressUI();
+}
+
+function renderBooks() {
+    const dr = document.getElementById('drawer-content'); dr.innerHTML = '';
+    Object.keys(BOOKS).forEach(b => {
+        if(!bible[b]) return;
+        const btn = document.createElement('button');
+        btn.className = 'book-btn';
+        const isDone = localStorage.getItem(`book_done_${b}`) === 'true';
+        btn.innerHTML = BOOKS[b] + (isDone ? ' <span style="float:right">✅</span>' : '');
+        btn.onclick = () => showFullBook(b);
+        dr.appendChild(btn);
+    });
+}
+
+function showSummary() {
+    let html = `<h2>📊 閱讀進度總覽</h2><div class="summary-grid">`;
+    Object.keys(BOOKS).forEach(b => {
+        const isDone = localStorage.getItem(`book_done_${b}`) === 'true';
+        html += `<div class="summary-card" onclick="showFullBook('${b}')">
+                    <h4>${BOOKS[b]}</h4>
+                    <div class="small-bar-bg"><div class="small-bar-fill" style="width:${isDone?100:0}%"></div></div>
+                 </div>`;
+    });
+    document.getElementById('content').innerHTML = html + `</div>`;
+}
+
+function showNotesSummary() {
+    let notes = [];
+    for(let i=0; i<localStorage.length; i++){
+        const k = localStorage.key(i);
+        if(k.startsWith('vnote_')) {
+            const [, b, ch, v] = k.split('_');
+            notes.push({ b, ch, v, text: localStorage.getItem(k) });
+        }
+    }
+    let html = `<h2>📝 筆記總覽</h2>`;
+    notes.forEach(n => {
+        html += `<div style="padding:15px; border-bottom:1px solid var(--border); cursor:pointer;" onclick="showFullBook('${n.b}')">
+                    <small style="color:var(--note-accent)">${BOOKS[n.b]} ${n.ch}:${n.v}</small><br>${n.text}
+                 </div>`;
+    });
+    document.getElementById('content').innerHTML = html || '<p>尚無筆記</p>';
+}
+
+// --- 通用功能 ---
+function changeTheme(t) {
+    document.body.classList.remove('dark', 'sepia');
+    if(t) document.body.classList.add(t);
+    localStorage.setItem('userTheme', t);
+}
+const savedTheme = localStorage.getItem('userTheme');
+if(savedTheme) changeTheme(savedTheme);
+
+function toggleMenu() { document.getElementById('drawer').classList.toggle('open'); }
+function autoResume() { 
+    const s = JSON.parse(localStorage.getItem('lastRead')); 
+    if(s && bible[s.book]) showFullBook(s.book); else showSummary(); 
+}
+function exportData() {
+    const b = new Blob([JSON.stringify(localStorage)], {type:'application/json'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `bible_reader_backup.json`; a.click();
+}
+function handleFile(i) {
+    const r = new FileReader();
+    r.onload = (e) => {
+        const d = JSON.parse(e.target.result);
+        localStorage.clear(); for(let k in d) localStorage.setItem(k, d[k]); location.reload();
+    };
+    r.readAsText(i.files[0]);
+}
+</script>
+</body>
+</html>
