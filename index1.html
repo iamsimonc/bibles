@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>聖經研讀 PWA (手機優化版)</title>
+<link rel="manifest" href="./manifest.json">
+<style>
+  * { box-sizing: border-box; }
+  :root { 
+    --font-size: 20px; --bg: #fdfdfd; --text: #1a1a1a; --border: #e0e0e0; 
+    --header-h: 95px; --sidebar-w: 300px; --accent: #2196f3; --book-accent: #4caf50; --note-accent: #ff9800;
+  }
+  body.dark { --bg: #121212; --text: #dcdcdc; --border: #333; }
+  body.sepia { --bg: #f4ecd8; --text: #5b4636; --border: #dcd0b9; }
+
+  body { margin: 0; font-family: system-ui, sans-serif; font-size: var(--font-size); background: var(--bg); color: var(--text); padding-top: var(--header-h); }
+
+  header {
+    position: fixed; top: 0; width: 100%; height: var(--header-h);
+    background: var(--bg); border-bottom: 1px solid var(--border);
+    display: flex; flex-direction: column; z-index: 1001;
+  }
+  .header-top { display: flex; justify-content: space-between; align-items: center; padding: 5px 12px; height: 50px; }
+  .header-sub { display: flex; align-items: center; padding: 0 12px; height: 45px; background: rgba(128,128,128,0.05); border-top: 1px solid var(--border); position: relative; }
+  
+  .prog-bg { width: 100%; height: 4px; background: var(--border); position: absolute; bottom: 0; left: 0; }
+  #global-bar { height: 100%; background: var(--accent); width: 0%; transition: width 0.5s; }
+  #book-bar { height: 100%; background: var(--book-accent); width: 0%; transition: width 0.5s; }
+
+  header button { font-size: 13px; padding: 5px 8px; background: transparent; border: 1px solid var(--border); color: var(--text); border-radius: 4px; cursor: pointer; }
+
+  #layout { display: flex; }
+  #drawer {
+    width: var(--sidebar-w); height: calc(100vh - var(--header-h));
+    position: fixed; left: 0; background: var(--bg); border-right: 1px solid var(--border); overflow-y: auto; z-index: 1000;
+    transition: transform 0.3s ease;
+  }
+  main { flex: 1; padding: 20px 15px 80px; max-width: 800px; margin: 0 auto; margin-left: var(--sidebar-w); transition: margin-left 0.3s ease; }
+
+  .book-btn, .chapter-btn { 
+    width: 100%; padding: 14px; border: none; background: none; 
+    text-align: left; color: var(--text); border-bottom: 1px solid var(--border); cursor: pointer; font-size: 16px;
+  }
+  .book-btn:hover, .chapter-btn:hover { background: rgba(128,128,128,0.1); }
+  .chapter-btn.active { background: rgba(33, 150, 243, 0.15); font-weight: bold; border-left: 4px solid var(--accent); }
+  .chapter-btn.completed::after { content: ' ✅'; float: right; }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-top: 20px; }
+  .summary-card { padding: 15px; border: 1px solid var(--border); border-radius: 12px; background: rgba(128,128,128,0.05); cursor: pointer; position: relative; }
+  .summary-card h4 { margin: 0 0 8px; font-size: 18px; color: var(--text); }
+  .resume-tag { font-size: 11px; background: var(--book-accent); color: white; padding: 2px 6px; border-radius: 4px; float: right; }
+  .small-bar-bg { width: 100%; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; margin-top: 10px; }
+  .small-bar-fill { height: 100%; background: var(--book-accent); }
+
+  .verse-wrapper { margin-bottom: 8px; border-bottom: 1px dotted var(--border); padding-bottom: 8px; }
+  .verse { padding: 8px; border-radius: 6px; line-height: 1.8; display: flex; }
+  .verse.hl { background-color: #fff176; color: #000 !important; }
+  .verse strong { color: #c62828; margin-right: 10px; cursor: pointer; min-width: 25px; }
+  .v-note-input { width: 100%; height: 0; opacity: 0; overflow: hidden; transition: all 0.3s; background: rgba(128,128,128,0.1); border: none; color: var(--text); font-size: 16px; }
+  .v-note-input.active { height: 80px; opacity: 1; padding: 8px; border: 1px solid var(--border); margin-top: 5px; }
+  .has-note-icon::after { content: ' 📝'; font-size: 12px; }
+  
+  .finish-chapter-box { margin: 30px 0; padding: 25px; background: rgba(76,175,80,0.1); border: 1px dashed var(--book-accent); border-radius: 12px; text-align: center; }
+  .chapter-nav { display: flex; justify-content: space-between; margin: 20px 0; }
+  .chapter-nav button { padding: 12px 20px; cursor: pointer; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; font-weight: bold; }
+  #notes-input { width: 100%; height: 120px; background: transparent; color: var(--text); border: 1px solid var(--border); padding: 10px; border-radius: 4px; font-size: 16px; }
+
+  /* 手機版調整 */
+  @media (max-width: 1023px) { 
+    #drawer { transform: translateX(-100%); }
+    #drawer.open { transform: translateX(0); box-shadow: 5px 0 15px rgba(0,0,0,0.2); }
+    main { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <button onclick="toggleMenu()" id="menu-btn">☰ 目錄</button>
+    <div id="global-txt" style="font-size: 11px; font-weight: bold;">全書: 0%</div>
+    <div style="display:flex; gap:5px;">
+      <button onclick="changeTheme('sepia')">🌾</button>
+      <button onclick="changeTheme('dark')">🌙</button>
+      <button onclick="exportData()">💾</button>
+      <button onclick="document.getElementById('importFile').click()">🔄</button>
+      <input type="file" id="importFile" style="display:none" onchange="handleFile(this)">
+    </div>
+    <div class="prog-bg"><div id="global-bar"></div></div>
+  </div>
+  <div class="header-sub">
+    <div id="book-txt" style="font-size: 13px; font-weight: bold; color: var(--book-accent);">載入中...</div>
+    <div class="prog-bg"><div id="book-bar"></div></div>
+  </div>
+</header>
+
+<div id="layout">
+  <nav id="drawer">
+    <div class="search-box" style="padding:10px; display:flex; gap:5px; border-bottom:1px solid var(--border);">
+      <input type="text" id="search-input" placeholder="搜尋經文..." style="flex:1; padding:6px; border:1px solid var(--border); border-radius:4px; background:transparent; color:var(--text);">
+      <button onclick="executeSearch()">🔍</button>
+    </div>
+    <div style="display: flex; border-bottom: 1px solid var(--border);">
+        <button onclick="showSummary()" style="flex:1; padding:15px; background: var(--accent); color: white; font-weight: bold; border:none; cursor:pointer; border-right: 1px solid #fff;">📊 進度</button>
+        <button onclick="showNotesSummary()" style="flex:1; padding:15px; background: var(--note-accent); color: white; font-weight: bold; border:none; cursor:pointer;">📝 筆記</button>
+    </div>
+    <div id="drawer-content"></div>
+  </nav>
+  <main id="content">讀取中...</main>
+</div>
+
+<script src="./books.js"></script>
+<script>
+let bible = {};
+let currentBook = null, currentChapter = null;
+
+function applyTheme() {
+  const t = localStorage.getItem('userTheme') || 'default';
+  document.body.classList.remove('dark', 'sepia');
+  if(t !== 'default') document.body.classList.add(t);
+}
+function changeTheme(t) {
+  const b = document.body; let active = 'default';
+  if(t==='dark') { b.classList.toggle('dark'); b.classList.remove('sepia'); if(b.classList.contains('dark')) active='dark'; }
+  else { b.classList.toggle('sepia'); b.classList.remove('dark'); if(b.classList.contains('sepia')) active='sepia'; }
+  localStorage.setItem('userTheme', active);
+}
+applyTheme();
+
+function refreshProgressUI() {
+  let globalDone = 0;
+  for(let i=0; i<localStorage.length; i++) {
+    if(localStorage.key(i).startsWith('prog_') && localStorage.getItem(localStorage.key(i)) === 'true') globalDone++;
+  }
+  const gPercent = ((globalDone / 1189) * 100).toFixed(1);
+  document.getElementById('global-bar').style.width = gPercent + '%';
+  document.getElementById('global-txt').textContent = `全書: ${gPercent}% (${globalDone}/1189)`;
+
+  if(currentBook && bible[currentBook]) {
+    const chs = Object.keys(bible[currentBook]);
+    let bDone = 0;
+    chs.forEach(c => { if(localStorage.getItem(`prog_${currentBook}_${c}`) === 'true') bDone++; });
+    const bPercent = ((bDone / chs.length) * 100).toFixed(0);
+    document.getElementById('book-bar').style.width = bPercent + '%';
+    document.getElementById('book-txt').textContent = `${BOOKS[currentBook]}: ${bPercent}% (${bDone}/${chs.length})`;
+  }
+}
+
+fetch('./bible.txt').then(r => r.text()).then(text => {
+  text.split(/\r?\n/).forEach(line => {
+    const m = line.trim().match(/^([\u4e00-\u9fa5\w]+)\s+(\d+):(\d+)\s+(.*)$/);
+    if (!m) return;
+    const [, b, ch, v, verse] = m;
+    const chNum = parseInt(ch);
+    bible[b] ??= {}; bible[b][chNum] ??= [];
+    bible[b][chNum].push({ v, verse });
+  });
+  renderBooks(); autoResume(); refreshProgressUI();
+});
+
+// 手機版：執行關鍵操作後自動收起側欄
+function closeMenuOnMobile() {
+  if (window.innerWidth < 1024) {
+    document.getElementById('drawer').classList.remove('open');
+  }
+}
+
+function executeSearch() {
+  const key = document.getElementById('search-input').value.trim();
+  if(!key) return;
+  closeMenuOnMobile();
+  let res = [];
+  for(let b in bible) {
+    for(let ch in bible[b]) {
+      bible[b][ch].forEach(v => { if(v.verse.includes(key)) res.push({b, ch, v:v.v, t:v.verse}); });
+    }
+  }
+  document.getElementById('content').innerHTML = `<h2>🔍 搜尋: "${key}"</h2><p>共 ${res.length} 處</p>` + 
+    res.slice(0, 100).map(r => `<div style="padding:15px; border-bottom:1px solid var(--border); cursor:pointer;" onclick="showChapter('${r.b}',${r.ch})">
+    <small style="color:var(--book-accent); font-weight:bold;">${BOOKS[r.b]} ${r.ch}:${r.v}</small><br>${r.t}</div>`).join('');
+}
+
+function showNotesSummary() {
+  currentBook = null;
+  closeMenuOnMobile();
+  let notes = [];
+  for(let i=0; i<localStorage.length; i++) {
+    const key = localStorage.key(i), value = localStorage.getItem(key);
+    if(!value || value.trim() === "" || !key.includes('_')) continue;
+    if(key.startsWith('note_')) {
+      const parts = key.split('_'); notes.push({ type: '章筆記', book: parts[1], ch: parts[2], text: value });
+    }
+    if(key.startsWith('vnote_')) {
+      const parts = key.split('_'); notes.push({ type: '節筆記', book: parts[1], ch: parts[2], verse: parts[3], text: value });
+    }
+  }
+  let html = `<h2>📝 我的靈修筆記</h2>`;
+  if(notes.length === 0) html += `<p style="color:gray; text-align:center; margin-top:50px;">目前還沒有任何筆記。</p>`;
+  else {
+    notes.forEach(n => {
+      const title = n.type === '章筆記' ? `${BOOKS[n.book]} 第 ${n.ch} 章` : `${BOOKS[n.book]} ${n.ch}:${n.verse}`;
+      html += `<div class="note-item" onclick="showChapter('${n.book}', ${n.ch})"><div class="note-meta">${n.type} | ${title}</div><div class="note-content">${n.text}</div></div>`;
+    });
+  }
+  document.getElementById('content').innerHTML = html;
+  document.getElementById('book-txt').textContent = "筆記總覽";
+}
+
+function showSummary() {
+  currentBook = null;
+  closeMenuOnMobile();
+  let html = `<h2>📊 閱讀進度總覽</h2><div class="summary-grid">`;
+  Object.keys(BOOKS).forEach(b => {
+    if(!bible[b]) return;
+    const chs = Object.keys(bible[b]).map(Number).sort((x,y)=>x-y);
+    let done = 0, firstUnread = null;
+    chs.forEach(c => { if(localStorage.getItem(`prog_${b}_${c}`) === 'true') done++; else if (firstUnread === null) firstUnread = c; });
+    const pc = ((done / chs.length) * 100).toFixed(0);
+    html += `
+      <div class="summary-card" onclick="showChapter('${b}', ${firstUnread || 1})">
+        <span class="resume-tag">${firstUnread ? '續讀' : '重讀'}</span>
+        <h4>${BOOKS[b]}</h4>
+        <div style="font-size:13px; color:gray;">${done} / ${chs.length} 章</div>
+        <div style="font-size:13px; font-weight:bold; color:var(--book-accent); text-align:right;">${pc}%</div>
+        <div class="small-bar-bg"><div class="small-bar-fill" style="width:${pc}%"></div></div>
+      </div>`;
+  });
+  document.getElementById('content').innerHTML = html + `</div>`;
+  document.getElementById('book-txt').textContent = "進度總覽";
+}
+
+function showChapter(book, ch) {
+  currentBook = book; currentChapter = ch;
+  localStorage.setItem('lastRead', JSON.stringify({book, ch}));
+  renderChapters(book);
+  closeMenuOnMobile();
+  window.scrollTo(0,0);
+  
+  const isDone = localStorage.getItem(`prog_${book}_${ch}`) === 'true';
+  const hls = JSON.parse(localStorage.getItem(`hl_${book}_${ch}`) || "[]");
+  let html = `<div style="display:flex; justify-content:space-between; align-items:center;"><h3 style="margin:0;">${BOOKS[book]} 第 ${ch} 章</h3></div><br>`;
+  
+  html += bible[book][ch].map(v => {
+    const vNote = localStorage.getItem(`vnote_${book}_${ch}_${v.v}`) || "";
+    return `<div class="verse-wrapper">
+              <div class="verse ${hls.includes(v.v)?'hl':''} ${vNote?'has-note-icon':''}" id="v-${v.v}">
+                <strong onclick="toggleHighlight('${v.v}')">${v.v}</strong>
+                <span onclick="toggleNoteField('${v.v}')">${v.verse}</span>
+              </div>
+              <textarea class="v-note-input" id="input-${v.v}" oninput="saveVerseNote('${v.v}', this)" placeholder="筆記...">${vNote}</textarea>
+            </div>`;
+  }).join('');
+  
+  html += `<div class="finish-chapter-box"><label style="cursor:pointer; font-weight:bold; color:var(--book-accent); font-size:1.1em;">
+             <input type="checkbox" style="transform:scale(1.5); margin-right:12px;" onchange="toggleProgress('${book}',${ch},this)" ${isDone?'checked':''}> 讀完本章</label></div>
+           <div class="chapter-nav"><button onclick="goPrev()">⬅ 上一章</button><button onclick="goNext()">下一章 ➡</button></div>
+           <textarea id="notes-input" oninput="saveChapterNote()" placeholder="本章總結筆記..."></textarea>`;
+  
+  document.getElementById('content').innerHTML = html;
+  document.getElementById('notes-input').value = localStorage.getItem(`note_${book}_${ch}`) || "";
+  refreshProgressUI();
+}
+
+function toggleProgress(book, ch, el) { 
+  localStorage.setItem(`prog_${book}_${ch}`, el.checked); 
+  refreshProgressUI();
+  renderChapters(book);
+}
+
+function renderBooks() {
+  const dr = document.getElementById('drawer-content'); dr.innerHTML = '';
+  const addSec = (t, s, e) => {
+    const d = document.createElement('div'); d.className = 'drawer-section'; d.textContent = t; d.style.padding="12px"; d.style.background="rgba(128,128,128,0.08)"; d.style.fontSize="14px"; dr.appendChild(d);
+    Object.keys(BOOKS).slice(s, e).forEach(b => { if(bible[b]) {
+      const btn = document.createElement('button'); btn.className = 'book-btn'; btn.textContent = BOOKS[b]; btn.onclick = () => renderChapters(b); dr.appendChild(btn);
+    }});
+  };
+  addSec('舊約全書', 0, 39); addSec('新約全書', 39, 66);
+}
+
+function renderChapters(book) {
+  const dr = document.getElementById('drawer-content');
+  let html = `<button class="book-btn" onclick="renderBooks()" style="background:rgba(128,128,128,0.1); font-weight:bold;">⬅ 返回卷目</button>`;
+  Object.keys(bible[book]).map(Number).sort((a,b)=>a-b).forEach(ch => {
+    const isCompleted = localStorage.getItem(`prog_${book}_${ch}`) === 'true';
+    const isActive = (currentBook === book && currentChapter === ch);
+    html += `<button class="chapter-btn ${isCompleted ? 'completed' : ''} ${isActive ? 'active' : ''}" onclick="showChapter('${book}', ${ch})">${BOOKS[book]} 第 ${ch} 章</button>`;
+  });
+  dr.innerHTML = html;
+}
+
+function toggleHighlight(v) {
+  const el = document.getElementById(`v-${v}`); el.classList.toggle('hl');
+  const key = `hl_${currentBook}_${currentChapter}`;
+  let hls = JSON.parse(localStorage.getItem(key) || "[]");
+  if(el.classList.contains('hl')) hls.push(v); else hls = hls.filter(i => i !== v);
+  localStorage.setItem(key, JSON.stringify(hls));
+}
+function toggleNoteField(v) { const i = document.getElementById(`input-${v}`); i.classList.toggle('active'); if(i.classList.contains('active')) i.focus(); }
+function saveVerseNote(v, el) { 
+  localStorage.setItem(`vnote_${currentBook}_${currentChapter}_${v}`, el.value); 
+  if(el.value.trim()) document.getElementById(`v-${v}`).classList.add('has-note-icon'); else document.getElementById(`v-${v}`).classList.remove('has-note-icon');
+}
+function saveChapterNote() { localStorage.setItem(`note_${currentBook}_${currentChapter}`, document.getElementById('notes-input').value); }
+
+// 手動開關側欄：加入狀態判斷
+function toggleMenu() { 
+  const drawer = document.getElementById('drawer');
+  drawer.classList.toggle('open');
+}
+
+function autoResume() { const s = JSON.parse(localStorage.getItem('lastRead')); if(s && bible[s.book]) showChapter(s.book, s.ch); else showSummary(); }
+
+function goPrev() {
+  const chs = Object.keys(bible[currentBook]).map(Number).sort((a,b)=>a-b), i = chs.indexOf(currentChapter);
+  if (i > 0) showChapter(currentBook, chs[i-1]);
+  else {
+    const bks = Object.keys(BOOKS), bi = bks.indexOf(currentBook);
+    if (bi > 0) { const pb = bks[bi-1], last = Math.max(...Object.keys(bible[pb]).map(Number)); showChapter(pb, last); }
+  }
+}
+function goNext() {
+  const chs = Object.keys(bible[currentBook]).map(Number).sort((a,b)=>a-b), i = chs.indexOf(currentChapter);
+  if (i < chs.length-1) showChapter(currentBook, chs[i+1]);
+  else {
+    const bks = Object.keys(BOOKS), bi = bks.indexOf(currentBook);
+    if (bi < bks.length-1) showChapter(bks[bi+1], 1);
+  }
+}
+
+function exportData() {
+  const now = new Date(), dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+  const b = new Blob([JSON.stringify(localStorage)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `bible_study_backup${dateStr}.json`; a.click();
+}
+function handleFile(i) {
+  const r = new FileReader();
+  r.onload = (e) => {
+    try {
+      const d = JSON.parse(e.target.result);
+      if(confirm("還原備份將覆蓋目前進度，確定嗎？")) { localStorage.clear(); for(let k in d) localStorage.setItem(k, d[k]); location.reload(); }
+    } catch(err) { alert("檔案錯誤"); }
+  };
+  r.readAsText(i.files[0]);
+}
+</script>
+</body>
+</html>
