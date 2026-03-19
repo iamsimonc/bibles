@@ -472,8 +472,8 @@ const rawText = `
 `;
 
 // ✅ 修正分章
-const chapters = rawText.split(/歷代志下[一二三四五六七八九十\d]+/).filter(c => c.trim() !== "");
-const titles = rawText.match(/歷代志下[一二三四五六七八九十\d]+/g);
+const chapters = rawText.split(/歷代志下[一二三四五六七八九十\d]+章/).filter(c => c.trim() !== "");
+const titles = rawText.match(/歷代志下[一二三四五六七八九十\d]+章/g);
 
 // 防止报错
 if (!titles || titles.length === 0) {
