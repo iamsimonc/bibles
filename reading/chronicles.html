@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>歷代志下輔讀</title>
+
+<style>
+body {
+    font-family: Arial;
+    margin: 0;
+}
+
+.container {
+    display: flex;
+    height: 100vh;
+}
+
+.menu {
+    width: 250px;
+    background: #f4f4f4;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.menu input {
+    width: 100%;
+    padding: 5px;
+    margin-bottom: 10px;
+}
+
+.menu ul {
+    list-style: none;
+    padding: 0;
+}
+
+.menu li {
+    padding: 8px;
+    cursor: pointer;
+}
+
+.menu li:hover {
+    background: #ddd;
+}
+
+.content {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+/* 手机 */
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column;
+    }
+    .menu {
+        width: 100%;
+        height: 200px;
+    }
+}
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+```
+<div class="menu">
+    <input type="text" id="search" placeholder="搜尋章節...">
+    <ul id="chapterList"></ul>
+</div>
+
+<div class="content" id="content">
+    <h2>載入中...</h2>
+</div>
+```
+
+</div>
+
+<script>
+// 👉 把你的 Word 内容贴在这里
+const rawText = `在這裡貼上你的 Word 內容`;
+
+
+// 🔥 自动分章
+const chapters = rawText.split(/歷代志下\s*\d+/).filter(c => c.trim() !== "");
+
+// 取得章号
+const titles = rawText.match(/歷代志下\s*\d+/g);
+
+// 生成菜单
+const list = document.getElementById("chapterList");
+
+titles.forEach((title, index) => {
+    const li = document.createElement("li");
+    li.textContent = title;
+
+    li.onclick = () => {
+        document.getElementById("content").innerHTML =
+            "<h2>" + title + "</h2><pre>" + chapters[index] + "</pre>";
+
+```
+};
+
+list.appendChild(li);
+```
+
+});
+
+// 默认显示第一章
+document.getElementById("content").innerHTML =
+"<h2>" + titles[0] + "</h2><pre>" + chapters[0] + "</pre>";
+
+// 🔍 搜索功能
+document.getElementById("search").addEventListener("input", function() {
+const keyword = this.value.toLowerCase();
+
+```
+document.querySelectorAll("#chapterList li").forEach(li => {
+    if (li.textContent.toLowerCase().includes(keyword)) {
+        li.style.display = "block";
+    } else {
+        li.style.display = "none";
+    }
+});
+```
+
+}); </script>
+
+</body>
+</html>
