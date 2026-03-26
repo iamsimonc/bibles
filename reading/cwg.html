@@ -1,227 +1,109 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh-Hant" lang="zh-Hant">
+<!DOCTYPE html>
+<html lang="zh-Hant">
 <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>與神對話 - 格式修復版</title>
-<style type="text/css">
-    /* 1. 基礎頁面 */
-    body {
-        max-width: 100%;
-        margin: 0;
-        padding: 20px 15px 150px 15px;
-        background-color: #f8f5ee;
-        color: #333 !important;
-        font-family: -apple-system, sans-serif;
-        line-height: 1.8;
-        transition: background-color 0.3s;
-    }
-
-    /* 2. 深色模式強制樣式 */
-    body.dark-mode {
-        background-color: #1a1a1a !important;
-        color: #d1d1d1 !important;
-    }
-    /* 強制內容區所有子元素繼承顏色 */
-    body.dark-mode #content-area, 
-    body.dark-mode #content-area * {
-        background-color: transparent !important;
-        color: #d1d1d1 !important;
-    }
-
-    /* 3. 內容區 */
-    #content-area {
-        white-space: pre-wrap;
-        word-wrap: break-word;
-        display: block;
-    }
-
-    /* 4. 功能表 - 確保完全顯示 */
-    #reader-controls {
-        position: fixed;
-        bottom: 30px; /* 向上提一點，避免被手機列遮擋 */
-        left: 5%;
-        width: 90%;
-        background: rgba(255, 255, 255, 0.98);
-        border: 1px solid #ccc;
-        padding: 12px 5px;
-        z-index: 10000;
-        display: flex;
-        justify-content: space-around;
-        align-items: center;
-        border-radius: 50px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-    }
-    
-    body.dark-mode #reader-controls {
-        background: #333;
-        border-color: #555;
-    }
-
-    button {
-        border: none;
-        background: transparent;
-        font-size: 18px;
-        font-weight: bold;
-        padding: 10px;
-        cursor: pointer;
-    }
-
-    body.dark-mode button { color: #eee; }
-
-    /* 側邊欄 */
-    #sidebar {
-        position: fixed; top: 0; right: -100%; width: 80%; height: 100%;
-        background: #fff; z-index: 10001; padding: 20px; transition: 0.3s;
-        box-shadow: -5px 0 20px rgba(0,0,0,0.2);
-        color: #333 !important;
-    }
-    #sidebar.open { right: 0; }
-    #bookmark-list div {
-        padding: 15px;
-        border-bottom: 1px solid #eee;
-        font-size: 16px;
-    }
-</style>
-
-<div id="reader-controls">
-    <button onclick="changeFontSize(-2)">A-</button>
-    <span id="size-indicator">100%</span>
-    <button onclick="changeFontSize(2)">A+</button>
-    <button onclick="toggleDarkMode()">🌓</button>
-    <button onclick="addBookmark()">🔖</button>
-    <button onclick="toggleSidebar()">📋</button>
-</div>
-
-<div id="sidebar">
-    <h2 style="color:#333 !important;">書籤清單</h2>
-    <div id="bookmark-list" style="color:#333 !important;"></div>
-    <button onclick="toggleSidebar()" style="margin-top:20px; background:#eee; width:100%; border-radius:10px;">關閉</button>
-</div>
-
-<div id="content-area">
-</div>
-
-<script>
-    // 初始化設定
-    let currentFontSize = parseInt(localStorage.getItem('reader-font-size')) || 20;
-    let isDark = localStorage.getItem('reader-dark-mode') === 'true';
-    let bookmarks = JSON.parse(localStorage.getItem('reader-bookmarks')) || [];
-
-    // 1. 修復放大縮小 (使用強制遍歷)
-    function applyFontSize() {
-        const content = document.getElementById('content-area');
-        content.style.setProperty('font-size', currentFontSize + 'px', 'important');
-        
-        // 強制修正所有子標籤 (p, span, div) 的字體
-        const allChildren = content.querySelectorAll('*');
-        allChildren.forEach(el => {
-            el.style.setProperty('font-size', currentFontSize + 'px', 'important');
-        });
-
-        document.getElementById('size-indicator').innerText = Math.round((currentFontSize/20)*100) + '%';
-        localStorage.setItem('reader-font-size', currentFontSize);
-    }
-
-    function changeFontSize(delta) {
-        currentFontSize += delta;
-        if (currentFontSize < 12) currentFontSize = 12;
-        if (currentFontSize > 50) currentFontSize = 50;
-        applyFontSize();
-    }
-
-    // 2. 修復深色模式
-    function toggleDarkMode() {
-        isDark = !isDark;
-        if (isDark) {
-            document.body.classList.add('dark-mode');
-        } else {
-            document.body.classList.remove('dark-mode');
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>與神對話 - 閱讀器最終修正版</title>
+    <style>
+        /* 1. 基礎版面修正 */
+        body {
+            margin: 0;
+            padding: 20px 15px 150px 15px;
+            background-color: #f8f5ee;
+            color: #333;
+            font-family: -apple-system, "Microsoft JhengHei", sans-serif;
+            transition: background-color 0.3s;
+            overflow-x: hidden;
         }
-        localStorage.setItem('reader-dark-mode', isDark);
-    }
 
-    // 3. 修復書籤功能
-    function addBookmark() {
-        const scrollPos = window.scrollY;
-        // 抓取當前畫面前幾行字當標題
-        const snippet = document.body.innerText.substring(0, 15).replace(/\n/g, "");
-        const time = new Date().toLocaleTimeString();
-        
-        bookmarks.push({ 
-            pos: scrollPos, 
-            title: snippet + "... (" + time + ")" 
-        });
-        
-        localStorage.setItem('reader-bookmarks', JSON.stringify(bookmarks));
-        alert("已成功加入書籤！");
-        renderBookmarks();
-    }
-
-    function renderBookmarks() {
-        const list = document.getElementById('bookmark-list');
-        if (bookmarks.length === 0) {
-            list.innerHTML = "<p>尚無書籤</p>";
-            return;
+        /* 2. 深色模式 - 強制接管 */
+        body.dark-mode {
+            background-color: #1a1a1a !important;
+            color: #d1d1d1 !important;
         }
-        list.innerHTML = bookmarks.map((b, index) => `
-            <div onclick="jumpToBookmark(${b.pos})">
-                ${b.title} 
-                <span style="color:red; margin-left:10px;" onclick="event.stopPropagation(); deleteBookmark(${index})">[刪除]</span>
-            </div>
-        `).join('');
-    }
+        body.dark-mode #content-area * {
+            background-color: transparent !important;
+            color: #d1d1d1 !important;
+            border-color: #444 !important;
+        }
 
-    function jumpToBookmark(pos) {
-        window.scrollTo({ top: pos, behavior: 'smooth' });
-        toggleSidebar();
-    }
+        /* 3. 內容區：保留 PDF 換行，但允許我們接管大小 */
+        #content-area {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.8 !important;
+        }
 
-    function deleteBookmark(index) {
-        bookmarks.splice(index, 1);
-        localStorage.setItem('reader-bookmarks', JSON.stringify(bookmarks));
-        renderBookmarks();
-    }
+        /* 4. 手機專用功能表 (懸浮膠囊) */
+        #reader-controls {
+            position: fixed;
+            bottom: 30px;
+            left: 5%;
+            width: 90%;
+            background: rgba(255, 255, 255, 0.98);
+            border: 1px solid #ccc;
+            padding: 10px 0;
+            z-index: 10000;
+            display: flex;
+            justify-content: space-evenly;
+            align-items: center;
+            border-radius: 50px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
 
-    function toggleSidebar() {
-        document.getElementById('sidebar').classList.toggle('open');
-        renderBookmarks();
-    }
+        body.dark-mode #reader-controls {
+            background: #333;
+            border-color: #555;
+        }
 
-    // 頁面加載完成後執行
-    window.onload = function() {
-        if (isDark) document.body.classList.add('dark-mode');
-        applyFontSize();
-        renderBookmarks();
-    };
-</script>
+        button {
+            border: none;
+            background: transparent;
+            font-size: 18px;
+            font-weight: bold;
+            padding: 12px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body.dark-mode button { color: #eee; }
+
+        #size-indicator { font-size: 14px; min-width: 45px; text-align: center; }
+
+        /* 側邊欄 */
+        #sidebar {
+            position: fixed; top: 0; right: -100%; width: 85%; height: 100%;
+            background: #fff; z-index: 10001; padding: 20px; transition: 0.3s;
+            box-shadow: -5px 0 20px rgba(0,0,0,0.2);
+            color: #333 !important;
+            overflow-y: auto;
+        }
+        #sidebar.open { right: 0; }
+        .list-item { padding: 15px; border-bottom: 1px solid #eee; }
+    </style>
 </head>
 <body>
 
 <div id="reader-controls">
-    <button onclick="changePage(-1)">上頁</button>
+    <button onclick="changePage(-1)">◀</button>
     <button onclick="changeFontSize(-2)">A-</button>
-    <span id="size-indicator" style="min-width:45px; text-align:center;">100%</span>
+    <span id="size-indicator">100%</span>
     <button onclick="changeFontSize(2)">A+</button>
-    <button onclick="changePage(1)">下頁</button>
-    <button onclick="toggleDarkMode()">🌙/☀️</button>
-    <button onclick="addBookmark()">🔖</button>
+    <button onclick="changePage(1)">▶</button>
+    <button onclick="toggleDarkMode()">🌓</button>
     <button onclick="toggleSidebar()">📋</button>
 </div>
 
 <div id="sidebar">
-    <h3>紀錄</h3>
+    <h3 style="color:#333">書籤紀錄</h3>
     <div id="bookmark-list"></div>
-    <hr>
-    <div id="highlight-list"></div>
-    <button onclick="clearStorage()" style="margin-top:20px; color:red; border:none; background:none;">清空紀錄</button>
+    <button onclick="addBookmark()" style="background:#4CAF50; color:white; width:100%; border-radius:10px; margin-top:10px;">儲存目前位置</button>
+    <button onclick="toggleSidebar()" style="background:#eee; width:100%; border-radius:10px; margin-top:10px;">關閉</button>
 </div>
 
 <div id="content-area">
+與神對話(一)
 
-    <h1 style="padding-top: 5pt;padding-left: 5pt;text-indent: 0pt;text-align: left;">與神對話(一)</h1>
-    <p style="padding-left: 5pt;text-indent: 0pt;line-height: 153%;text-align: left;">尼爾•唐那•沃許(Neale Donald Walsh)...</p>
-<P>        與神對話(一)
 作者簡介
 尼爾•唐那•沃許(Neale Donald Walsh)。一九九五年，在他的人生最低潮期，一天因寫了一封憤怒信給神，沒想到這信竟得到了回答，也因此產生了一本驚世之作──《與神對話》。之後，他整個的人生觀與生活都改變了，而創立了一個叫做―再創造‖(ReCreation)的組織，專門致力在傳  播自己所領悟出的喜悅、真理，與愛的信念。目前與妻子南茜住在美國的奧勒岡。
 
@@ -2393,72 +2275,101 @@
  
 所以，不論何時何地，當你離開了平安（那是我）時，呼叫我。我會在那兒。
 連 同真理。和光。
-和愛。</P>   
+和愛。
+    
 </div>
 
-<script type="text/javascript">
-    let currentFontSize = parseInt(localStorage.getItem('font-size')) || 18;
-    let bookmarks = JSON.parse(localStorage.getItem('bookmarks')) || [];
-    let highlights = JSON.parse(localStorage.getItem('highlights')) || [];
+<script>
+    // 從儲存空間讀取設定
+    let currentFontSize = parseInt(localStorage.getItem('reader-fs')) || 20;
+    let isDark = localStorage.getItem('reader-dark') === 'true';
+    let bookmarks = JSON.parse(localStorage.getItem('reader-bks')) || [];
+
+    // --- 功能 1: 放大縮小 (強力接管版) ---
+    function applyFontSize() {
+        const contentArea = document.getElementById('content-area');
+        // 1. 修改容器
+        contentArea.style.setProperty('font-size', currentFontSize + 'px', 'important');
+        
+        // 2. 強制掃描所有子元素，移除原本 PDF 鎖死的字體大小
+        const allElements = contentArea.querySelectorAll('*');
+        allElements.forEach(el => {
+            el.style.setProperty('font-size', currentFontSize + 'px', 'important');
+            el.style.setProperty('line-height', '1.8', 'important');
+        });
+
+        document.getElementById('size-indicator').innerText = Math.round((currentFontSize / 20) * 100) + '%';
+        localStorage.setItem('reader-fs', currentFontSize);
+    }
 
     function changeFontSize(delta) {
-        const baseSize = 18;
         currentFontSize += delta;
-        if (currentFontSize < 10) currentFontSize = 10;
-        if (currentFontSize > 50) currentFontSize = 50;
-        document.getElementById('content-area').style.setProperty('font-size', currentFontSize + 'px', 'important');
-        localStorage.setItem('font-size', currentFontSize);
-        document.getElementById('size-indicator').innerText = Math.round((currentFontSize/baseSize)*100) + '%';
+        if (currentFontSize < 12) currentFontSize = 12;
+        if (currentFontSize > 60) currentFontSize = 60;
+        applyFontSize();
     }
 
+    // --- 功能 2: 上下翻頁 ---
+    function changePage(direction) {
+        // 每次翻動 80% 的螢幕高度
+        const scrollAmount = window.innerHeight * 0.8 * direction;
+        window.scrollBy({
+            top: scrollAmount,
+            behavior: 'smooth'
+        });
+    }
+
+    // --- 功能 3: 深色模式 ---
     function toggleDarkMode() {
-        document.body.classList.toggle('dark-mode');
-        localStorage.setItem('dark-mode', document.body.classList.contains('dark-mode'));
+        isDark = !isDark;
+        document.body.classList.toggle('dark-mode', isDark);
+        localStorage.setItem('reader-dark', isDark);
     }
 
-    function changePage(dir) {
-        window.scrollBy({ top: window.innerHeight * 0.8 * dir, behavior: 'smooth' });
-    }
-
+    // --- 功能 4: 書籤系統 ---
     function addBookmark() {
         const pos = window.scrollY;
+        const snippet = document.body.innerText.substring(0, 10).trim() || "新書籤";
         const time = new Date().toLocaleTimeString();
-        bookmarks.push({ pos, text: "書籤 " + time });
-        localStorage.setItem('bookmarks', JSON.stringify(bookmarks));
-        renderLists();
-        alert("已存書籤");
+        bookmarks.push({ pos, title: snippet + "... (" + time + ")" });
+        localStorage.setItem('reader-bks', JSON.stringify(bookmarks));
+        renderBookmarks();
+        alert("位置已儲存");
     }
 
-    document.addEventListener('mouseup', function() {
-        let sel = window.getSelection();
-        let txt = sel.toString().trim();
-        if (txt.length > 2) {
-            if (confirm("儲存這段高亮？")) {
-                const range = sel.getRangeAt(0);
-                const span = document.createElement('span');
-                span.className = 'highlight-mark';
-                range.surroundContents(span);
-                highlights.push(txt);
-                localStorage.setItem('highlights', JSON.stringify(highlights));
-                renderLists();
-            }
-        }
-    });
-
-    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); renderLists(); }
-
-    function renderLists() {
-        document.getElementById('bookmark-list').innerHTML = bookmarks.map(b => `<div class="list-item" onclick="window.scrollTo(0, ${b.pos})">${b.text}</div>`).join('');
-        document.getElementById('highlight-list').innerHTML = highlights.map(h => `<div class="list-item">「${h.substring(0,20)}...」</div>`).join('');
+    function renderBookmarks() {
+        const list = document.getElementById('bookmark-list');
+        list.innerHTML = bookmarks.length ? bookmarks.map((b, i) => `
+            <div class="list-item" onclick="jumpTo(${b.pos})">
+                ${b.title}
+                <span style="color:red; float:right" onclick="event.stopPropagation(); deleteBk(${i})">刪除</span>
+            </div>
+        `).join('') : "尚無書籤";
     }
 
-    function clearStorage() { if(confirm("清除？")) { localStorage.clear(); location.reload(); } }
+    function jumpTo(pos) {
+        window.scrollTo({ top: pos, behavior: 'smooth' });
+        toggleSidebar();
+    }
 
+    function deleteBk(i) {
+        bookmarks.splice(i, 1);
+        localStorage.setItem('reader-bks', JSON.stringify(bookmarks));
+        renderBookmarks();
+    }
+
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('open');
+        renderBookmarks();
+    }
+
+    // 初始加載
     window.onload = function() {
-        if (localStorage.getItem('dark-mode') === 'true') document.body.classList.add('dark-mode');
-        changeFontSize(0);
-        renderLists();
+        if (isDark) document.body.classList.add('dark-mode');
+        applyFontSize();
+        renderBookmarks();
     };
 </script>
+
 </body>
 </html>
