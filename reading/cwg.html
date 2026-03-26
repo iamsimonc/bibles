@@ -37,6 +37,7 @@
         display: flex;
         gap: 8px;
         align-items: center;
+     
     }
 
     /* 深色模式下的控制面板 */
@@ -88,7 +89,10 @@ html {
             justify-content: center;
         }
     }
+
+  
 </style>
+
  <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/><title>與神同行</title><meta name="author" content="ajc"/><style type="text/css"> * {margin:0; padding:0; text-indent:0; }
  h1 { color: #49442A; font-family:"ヒラギノ明朝 ProN W6", serif; font-style: normal; font-weight: bold; text-decoration: none; font-size: 14pt; }
  .s1 { color: #49442A; font-family:Arial, sans-serif; font-style: normal; font-weight: bold; text-decoration: none; font-size: 14pt; }
@@ -114,7 +118,60 @@ html {
  #l5 {padding-left: 0pt;counter-reset: g1 1; }
  #l5> li>*:first-child:before {counter-increment: g1; content: counter(g1, decimal)" "; color: #49442A; font-family:"Heiti SC", sans-serif; font-style: normal; font-weight: normal; text-decoration: none; font-size: 11pt; }
  #l5> li:first-child>*:first-child:before {counter-increment: g1 0;  }
+
+/* 側邊欄樣式 */
+#sidebar {
+    position: fixed;
+    top: 0;
+    left: -300px; /* 預設隱藏 */
+    width: 300px;
+    height: 100%;
+    background: #f8f9fa;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.2);
+    transition: 0.3s;
+    z-index: 2000;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+body.dark-mode #sidebar {
+    background: #1e1e1e;
+    color: white;
+}
+
+#sidebar.open {
+    left: 0;
+}
+
+/* 高亮樣式 */
+.highlight {
+    background-color: #ffeb3b;
+    color: black !important;
+    cursor: pointer;
+}
+
+.list-item {
+    border-bottom: 1px solid #ddd;
+    padding: 10px 0;
+    font-size: 14px;
+    cursor: pointer;
+}
+  
 </style></head><body>
+<button onclick="toggleSidebar()">📋 紀錄</button>
+<button onclick="addBookmark()">🔖 書籤</button>
+
+<div id="sidebar">
+    <h3>我的紀錄 <button onclick="toggleSidebar()" style="float:right">X</button></h3>
+    <hr>
+    <h4>🔖 書籤</h4>
+    <div id="bookmark-list"></div>
+    <hr>
+    <h4>🖍️ 高亮</h4>
+    <div id="highlight-list"></div>
+</div>
+ 
+ 
 <div id="reader-controls">
     <button onclick="changeFontSize(-4)" title="縮小">A-</button>
     <span id="size-indicator">100%</span>
@@ -164,4 +221,52 @@ function changeFontSize(delta) {
         }
     };
 </script>
+let bookmarks = JSON.parse(localStorage.getItem('my-bookmarks')) || [];
+let highlights = JSON.parse(localStorage.getItem('my-highlights')) || [];
+
+function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+    renderLists();
+}
+
+// 加入書籤 (記錄當前捲動高度)
+function addBookmark() {
+    const pos = window.scrollY;
+    const time = new Date().toLocaleString();
+    bookmarks.push({ pos, time });
+    localStorage.setItem('my-bookmarks', JSON.stringify(bookmarks));
+    alert("書籤已儲存！");
+}
+
+// 高亮功能：監聽文字選取
+document.addEventListener('mouseup', function() {
+    let selection = window.getSelection();
+    let text = selection.toString().trim();
+    
+    if (text.length > 0) {
+        if (confirm("要高亮並儲存這段文字嗎？")) {
+            const range = selection.getRangeAt(0);
+            const span = document.createElement('span');
+            span.className = 'highlight';
+            range.surroundContents(span);
+            
+            highlights.push(text);
+            localStorage.setItem('my-highlights', JSON.stringify(highlights));
+        }
+    }
+});
+
+// 顯示清單
+function renderLists() {
+    const bList = document.getElementById('bookmark-list');
+    const hList = document.getElementById('highlight-list');
+    
+    bList.innerHTML = bookmarks.map((b, i) => 
+        `<div class="list-item" onclick="window.scrollTo(0, ${b.pos})">位置 ${i+1} (${b.time})</div>`
+    ).join('');
+    
+    hList.innerHTML = highlights.map(h => 
+        `<div class="list-item">「${h.substring(0, 20)}...」</div>`
+    ).join('');
+} 
 </body></html>
