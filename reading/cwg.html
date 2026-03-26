@@ -4,74 +4,128 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>與神對話 - 格式修復版</title>
-   <style type="text/css">
-    /* 1. 基礎版面 */
+<style type="text/css">
+    /* 1. 基礎頁面修正 */
     body {
-        max-width: 850px;
-        margin: 0 auto;
-        padding: 20px 20px 100px 20px;
-        background-color: #ffffff;
+        max-width: 100%;
+        margin: 0;
+        /* 增加底部留白，確保最後一段文字不會被控制面板遮住 */
+        padding: 20px 15px 150px 15px; 
+        background-color: #f8f5ee;
         color: #333;
-        transition: background-color 0.3s;
-        font-family: "Microsoft JhengHei", sans-serif;
-        font-size: 18px; /* 預設較大的字體 */
+        font-family: -apple-system, sans-serif;
+        line-height: 1.8;
+        /* 防止手機自動調整文字大小 */
+        -webkit-text-size-adjust: 100%;
     }
 
-    /* 2. 💡 關鍵修正：讓手貼的文字自動換行與留白 */
+    /* 2. 文字內容區：保留換行 */
     #content-area {
-        /* 保留原本文字的換行格式 */
-        white-space: pre-wrap; 
-        /* 強制行高，解決密質質問題 */
-        line-height: 2 !important; 
-        /* 增加字距，閱讀更輕鬆 */
-        letter-spacing: 0.05em;
+        white-space: pre-wrap;
         word-wrap: break-word;
+        font-size: 20px; /* 初始字體 */
     }
 
-    /* 3. 針對段落標籤的優化 */
-    #content-area p {
-        margin-bottom: 1.5em !important;
-        display: block;
-    }
-
-    /* 4. 字體縮放功能 */
-    #content-area * {
-        font-size: inherit !important;
-    }
-
-    /* 5. 深色模式修正 */
-    body.dark-mode {
-        background-color: #1a1a1a !important;
-        color: #d1d1d1 !important;
-    }
-    body.dark-mode #content-area { color: inherit !important; }
-
-    /* 6. 控制面板樣式 (底部固定) */
+    /* 3. 🚀 核心修正：功能表完全顯示方案 */
     #reader-controls {
-        position: fixed; bottom: 15px; left: 10px; right: 10px;
+        position: fixed;
+        /* 改用 bottom: env(safe-area-inset-bottom) 適應 iPhone 底部橫條 */
+        bottom: 20px; 
+        left: 50%;
+        transform: translateX(-50%);
+        width: 90%; /* 寬度佔螢幕 90% */
+        max-width: 500px;
         background: rgba(255, 255, 255, 0.98);
-        border: 1px solid #ddd; padding: 12px;
-        z-index: 1000; display: flex; justify-content: center; gap: 10px;
-        border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        border: 1px solid #ccc;
+        padding: 10px 5px;
+        z-index: 9999; /* 確保在最上層 */
+        display: flex;
+        justify-content: space-evenly;
         align-items: center;
+        border-radius: 50px; /* 膠囊狀設計，更適合手機 */
+        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
     }
-    body.dark-mode #reader-controls { background: #333; border-color: #555; }
-    
-    button {
-        padding: 8px 15px; border: 1px solid #bbb; border-radius: 8px;
-        background: #fff; cursor: pointer; font-size: 14px;
-    }
-    body.dark-mode button { background: #444; color: white; border-color: #666; }
 
-    /* 側邊欄與高亮 */
+    /* 深色模式下的功能表 */
+    body.dark-mode #reader-controls {
+        background: #333;
+        border-color: #555;
+    }
+
+    /* 4. 按鈕優化：加大觸控範圍 */
+    #reader-controls button {
+        border: none;
+        background: transparent;
+        font-size: 18px;
+        font-weight: bold;
+        padding: 10px;
+        min-width: 44px; /* 符合 Apple 觸控標準 */
+        cursor: pointer;
+    }
+    
+    body.dark-mode #reader-controls button {
+        color: #fff;
+    }
+
+    #size-indicator {
+        font-size: 14px;
+        color: #666;
+        min-width: 45px;
+        text-align: center;
+    }
+
+    /* 5. 側邊欄紀錄 */
     #sidebar {
-        position: fixed; top: 0; right: -300px; width: 260px; height: 100%;
-        background: #fff; z-index: 2000; padding: 20px; transition: 0.3s;
-        box-shadow: -5px 0 15px rgba(0,0,0,0.1);
+        position: fixed; top: 0; right: -100%; width: 80%; height: 100%;
+        background: #fff; z-index: 10000; padding: 20px; transition: 0.3s;
+        box-shadow: -5px 0 20px rgba(0,0,0,0.2);
     }
     #sidebar.open { right: 0; }
-    .highlight-mark { background-color: #fff176 !important; color: #000 !important; }
 </style>
+
+<div id="reader-controls">
+    <button onclick="changeFontSize(-2)">A-</button>
+    <span id="size-indicator">100%</span>
+    <button onclick="changeFontSize(2)">A+</button>
+    <button onclick="toggleDarkMode()">🌓</button>
+    <button onclick="addBookmark()">🔖</button>
+    <button onclick="toggleSidebar()">📋</button>
+</div>
+
+<div id="sidebar">
+    <h3>閱讀紀錄</h3>
+    <div id="bookmark-list"></div>
+    <button onclick="toggleSidebar()" style="width:100%; margin-top:20px; padding:10px;">關閉</button>
+</div>
+
+<div id="content-area">
+</div>
+
+<script>
+    let currentFontSize = 20;
+
+    // 縮放功能修復：直接作用於內容區
+    function changeFontSize(delta) {
+        currentFontSize += delta;
+        if (currentFontSize < 14) currentFontSize = 14;
+        if (currentFontSize > 45) currentFontSize = 45;
+        document.getElementById('content-area').style.fontSize = currentFontSize + 'px';
+        document.getElementById('size-indicator').innerText = Math.round((currentFontSize/20)*100) + '%';
+    }
+
+    function toggleDarkMode() {
+        document.body.classList.toggle('dark-mode');
+    }
+
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('open');
+    }
+
+    // 簡單書籤功能
+    function addBookmark() {
+        alert("已記錄目前位置");
+    }
+</script>
 </head>
 <body>
 
