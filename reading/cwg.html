@@ -4,8 +4,8 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>與神對話 - 格式修復版</title>
-    <style type="text/css">
-    /* 1. 基礎排版：讓文字有呼吸空間 */
+   <style type="text/css">
+    /* 1. 基礎版面 */
     body {
         max-width: 850px;
         margin: 0 auto;
@@ -14,71 +14,63 @@
         color: #333;
         transition: background-color 0.3s;
         font-family: "Microsoft JhengHei", sans-serif;
-        /* 設定一個基礎字體大小 */
-        font-size: 18px; 
+        font-size: 18px; /* 預設較大的字體 */
     }
 
-    /* 2. 核心修正：強制撐開密集的文字 */
+    /* 2. 💡 關鍵修正：讓手貼的文字自動換行與留白 */
+    #content-area {
+        /* 保留原本文字的換行格式 */
+        white-space: pre-wrap; 
+        /* 強制行高，解決密質質問題 */
+        line-height: 2 !important; 
+        /* 增加字距，閱讀更輕鬆 */
+        letter-spacing: 0.05em;
+        word-wrap: break-word;
+    }
+
+    /* 3. 針對段落標籤的優化 */
     #content-area p {
-        /* 強制行高 1.8 倍，解決「密質質」問題 */
-        line-height: 1.8 !important; 
-        /* 增加段落之間的距離 */
-        margin-bottom: 1.2em !important; 
-        /* 保持原本 PDF 的縮進，但不允許它縮得太誇張 */
-        padding-top: 0 !important;
-        text-align: justify; /* 文字對齊 */
-        letter-spacing: 0.05em; /* 增加字距 */
+        margin-bottom: 1.5em !important;
+        display: block;
     }
 
-    /* 3. 強制字體縮放生效 */
+    /* 4. 字體縮放功能 */
     #content-area * {
         font-size: inherit !important;
     }
 
-    /* 4. 深色模式優化 */
+    /* 5. 深色模式修正 */
     body.dark-mode {
-        background-color: #121212 !important;
-        color: #cccccc !important;
+        background-color: #1a1a1a !important;
+        color: #d1d1d1 !important;
     }
-    body.dark-mode #content-area * {
-        color: inherit !important;
-    }
+    body.dark-mode #content-area { color: inherit !important; }
 
-    /* 5. 控制面板與按鈕樣式 */
+    /* 6. 控制面板樣式 (底部固定) */
     #reader-controls {
         position: fixed; bottom: 15px; left: 10px; right: 10px;
-        background: rgba(255, 255, 255, 0.95);
-        border: 1px solid #ddd; padding: 10px;
-        z-index: 1000; display: flex; justify-content: center; gap: 8px;
-        border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        background: rgba(255, 255, 255, 0.98);
+        border: 1px solid #ddd; padding: 12px;
+        z-index: 1000; display: flex; justify-content: center; gap: 10px;
+        border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        align-items: center;
     }
+    body.dark-mode #reader-controls { background: #333; border-color: #555; }
     
-    body.dark-mode #reader-controls {
-        background: rgba(45, 45, 45, 0.95);
-        border-color: #444;
-    }
-
     button {
-        padding: 10px 15px;
-        border: 1px solid #ccc;
-        border-radius: 8px;
-        background: #fdfdfd;
-        font-weight: bold;
+        padding: 8px 15px; border: 1px solid #bbb; border-radius: 8px;
+        background: #fff; cursor: pointer; font-size: 14px;
     }
+    body.dark-mode button { background: #444; color: white; border-color: #666; }
 
-    /* 高亮樣式 */
-    .highlight-mark {
-        background-color: #fff176 !important;
-        color: #000 !important;
-    }
-
-    /* 側邊欄樣式 */
+    /* 側邊欄與高亮 */
     #sidebar {
         position: fixed; top: 0; right: -300px; width: 260px; height: 100%;
-        background: #fff; z-index: 2000; padding: 20px;
-        box-shadow: -5px 0 15px rgba(0,0,0,0.1); transition: 0.3s;
+        background: #fff; z-index: 2000; padding: 20px; transition: 0.3s;
+        box-shadow: -5px 0 15px rgba(0,0,0,0.1);
     }
     #sidebar.open { right: 0; }
+    .highlight-mark { background-color: #fff176 !important; color: #000 !important; }
 </style>
 </head>
 <body>
