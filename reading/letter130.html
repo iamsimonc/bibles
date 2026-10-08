@@ -5,7 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>奧古斯丁書信130</title>
    <style>
-    /* 1. 基礎頁面：增加底部留白，避免最後一段被功能表擋住 */
+    /* 1. 定義 CSS 變數：預設電腦版寬度為 35% */
+    :root {
+        --content-width: 35%;
+    }
+
     body {
         margin: 0;
         padding: 20px 15px 160px 15px;
@@ -16,14 +20,13 @@
         line-height: 1.8;
     }
 
-    /* 2. 深色模式：強力覆蓋 PDF 顏色 */
     body.dark-mode { background-color: #1a1a1a !important; color: #d1d1d1 !important; }
     body.dark-mode #content-area * {
         background-color: transparent !important;
         color: #d1d1d1 !important;
     }
 
-    /* 3. 內容區：電腦版置中約佔 1/3 寬度，手機版自動撐滿 */
+    /* 2. 內容區：套用動態變數 var(--content-width) */
     #content-area {
         white-space: pre-wrap;
         word-wrap: break-word;
@@ -34,12 +37,12 @@
 
     @media (min-width: 768px) {
         #content-area {
-            width: 33.333%;
+            width: var(--content-width); /* 使用動態寬度 */
             margin: 0 auto;
         }
     }
 
-    /* 4. 功能表：膠囊設計，確保完全顯示 */
+    /* 功能表 */
     #reader-controls {
         position: fixed;
         bottom: 25px;
@@ -60,14 +63,13 @@
     button {
         border: none;
         background: transparent;
-        font-size: 20px;
+        font-size: 18px;
         font-weight: bold;
-        padding: 10px;
+        padding: 8px;
         cursor: pointer;
     }
     body.dark-mode button { color: #eee; }
 
-    /* 5. 側邊欄：修正「儲存後不消失」的問題 */
     #sidebar {
         position: fixed; top: 0; right: -100%; width: 85%; height: 100%;
         background: #fff; z-index: 10000; padding: 25px; transition: 0.4s;
@@ -88,11 +90,17 @@
 </head>
 <body>
 
+<!-- 新增了 ↔- 及 ↔+ 寬度控制按鈕 -->
 <div id="reader-controls">
     <button onclick="changePage(-1)">◀</button>
     <button onclick="changeFontSize(-2)">A-</button>
-    <span id="size-indicator" style="font-size:14px;">100%</span>
+    <span id="size-indicator" style="font-size:12px;">100%</span>
     <button onclick="changeFontSize(2)">A+</button>
+    
+    <button onclick="changeWidth(-5)">↔-</button>
+    <span id="width-indicator" style="font-size:12px;">35%</span>
+    <button onclick="changeWidth(5)">↔+</button>
+    
     <button onclick="changePage(1)">▶</button>
     <button onclick="toggleDarkMode()">🌓</button>
     <button onclick="toggleSidebar()">📋</button>
@@ -499,14 +507,29 @@
 願那能充充⾜⾜成就⼀切、超過我們所求所想的主，垂聽你們的禱告。
     
 ——奧古斯丁
+
     
 </div>
 
 <script>
     let currentFontSize = parseInt(localStorage.getItem('fSize')) || 20;
+    let currentWidth = parseInt(localStorage.getItem('cWidth')) || 35; // 預設 35%
     let bookmarks = JSON.parse(localStorage.getItem('bks')) || [];
 
-    // 強力縮放：遍歷所有標籤並強制覆蓋 inline style
+    // 動態更新寬度函式
+    function applyWidth() {
+        document.documentElement.style.setProperty('--content-width', currentWidth + '%');
+        document.getElementById('width-indicator').innerText = currentWidth + '%';
+        localStorage.setItem('cWidth', currentWidth); // 記住使用者設定
+    }
+
+    function changeWidth(delta) {
+        currentWidth += delta;
+        if (currentWidth < 20) currentWidth = 20; // 最小限制 20%
+        if (currentWidth > 90) currentWidth = 90; // 最大限制 90%
+        applyWidth();
+    }
+
     function applyFS() {
         const area = document.getElementById('content-area');
         area.style.setProperty('font-size', currentFontSize + 'px', 'important');
@@ -525,7 +548,6 @@
         applyFS();
     }
 
-    // 翻頁功能
     function changePage(dir) {
         window.scrollBy({ top: window.innerHeight * 0.8 * dir, behavior: 'smooth' });
     }
@@ -535,7 +557,6 @@
         localStorage.setItem('dark', document.body.classList.contains('dark-mode'));
     }
 
-    // 書籤功能：儲存後自動關閉側邊欄
     function addBookmark() {
         const pos = window.scrollY;
         const time = new Date().toLocaleTimeString();
@@ -543,7 +564,7 @@
         localStorage.setItem('bks', JSON.stringify(bookmarks));
         renderBks();
         alert("已儲存位置");
-        toggleSidebar(); // 儲存後自動關閉，避免擋住版面
+        toggleSidebar();
     }
 
     function renderBks() {
@@ -575,6 +596,7 @@
     window.onload = function() {
         if (localStorage.getItem('dark') === 'true') document.body.classList.add('dark-mode');
         applyFS();
+        applyWidth(); // 初始化載入寬度設定
     };
 </script>
 
